@@ -14,8 +14,18 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
     
-    # Database
+    # Database (Railway provides postgresql://, we need postgresql+asyncpg://)
     database_url: str = "postgresql+asyncpg://buildonx:buildonx@localhost:5432/buildonx"
+    
+    @property
+    def async_database_url(self) -> str:
+        """Convert database URL to async format."""
+        url = self.database_url
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        return url
     
     # Redis
     redis_url: str = "redis://localhost:6379"

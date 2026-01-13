@@ -26,8 +26,11 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
     print("🚀 Starting BuildOnX API...")
-    await init_db()
-    print("✅ Database initialized")
+    try:
+        await init_db()
+        print("✅ Database initialized")
+    except Exception as e:
+        print(f"⚠️ Database init failed (will retry on first request): {e}")
     
     yield
     
