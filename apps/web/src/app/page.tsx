@@ -196,7 +196,6 @@ function ToggleGroup({
 }
 
 export default function Home() {
-  const [view, setView] = useState("3D");
   const [buildCount, setBuildCount] = useState(2847);
   
   // Simulate live counter
@@ -316,7 +315,7 @@ export default function Home() {
                 >
                   <h1 className="font-display text-display-lg mb-4">
                     TWEET.<br/>
-                    <span className="text-transparent bg-clip-text bg-gradient-warm">BUILD.</span><br/>
+                    <span className="text-accent-warm">BUILD.</span><br/>
                     SHIP.
                   </h1>
                   
@@ -340,14 +339,6 @@ export default function Home() {
                     </Link>
                   </div>
                 </motion.div>
-                
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
-                  <ToggleGroup 
-                    options={["3D", "2D"]} 
-                    value={view} 
-                    onChange={setView} 
-                  />
-                </div>
               </GlassCard>
             </div>
 
@@ -593,7 +584,7 @@ export default function Home() {
             </Link>
           </div>
           <span className="text-xs text-mars-600">
-            Built with ❤️ and Claude
+            © 2024 BuildOnX
           </span>
         </div>
       </footer>
