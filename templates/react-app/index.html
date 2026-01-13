@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{PROJECT_NAME}}</title>
+    
+    <!-- React -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            900: '#0a0a0b',
+                            800: '#141416',
+                            700: '#1f1f23',
+                            600: '#2a2a2e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            background: #0a0a0b;
+            color: #fafafa;
+        }
+    </style>
+</head>
+<body class="dark">
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        // Main App Component
+        function App() {
+            const [count, setCount] = useState(0);
+            
+            return (
+                <div className="min-h-screen bg-dark-900">
+                    {/* Header */}
+                    <header className="border-b border-dark-600 py-4">
+                        <nav className="max-w-5xl mx-auto px-6 flex justify-between items-center">
+                            <h1 className="text-xl font-bold">{{PROJECT_NAME}}</h1>
+                            <div className="flex gap-6">
+                                <a href="#" className="text-gray-400 hover:text-white transition">Home</a>
+                                <a href="#" className="text-gray-400 hover:text-white transition">About</a>
+                            </div>
+                        </nav>
+                    </header>
+                    
+                    {/* Main Content */}
+                    <main className="max-w-5xl mx-auto px-6 py-16">
+                        <div className="text-center">
+                            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+                                Welcome to {{PROJECT_NAME}}
+                            </h2>
+                            <p className="text-xl text-gray-400 mb-10">
+                                {{PROJECT_DESCRIPTION}}
+                            </p>
+                            
+                            {/* Interactive Counter */}
+                            <div className="inline-block p-8 bg-dark-800 rounded-lg border border-dark-600">
+                                <p className="text-lg mb-4">Interactive Counter</p>
+                                <div className="flex items-center gap-4 justify-center">
+                                    <button 
+                                        onClick={() => setCount(c => c - 1)}
+                                        className="w-10 h-10 bg-dark-700 hover:bg-dark-600 rounded transition"
+                                    >
+                                        -
+                                    </button>
+                                    <span className="text-3xl font-bold w-16 text-center">{count}</span>
+                                    <button 
+                                        onClick={() => setCount(c => c + 1)}
+                                        className="w-10 h-10 bg-green-600 hover:bg-green-500 rounded transition"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                    
+                    {/* Footer */}
+                    <footer className="border-t border-dark-600 py-8">
+                        <p className="text-center text-gray-500">Built with BuildOnX</p>
+                    </footer>
+                </div>
+            );
+        }
+        
+        // Render
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+

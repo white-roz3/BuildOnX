@@ -1,0 +1,13 @@
+[build]
+builder = "NIXPACKS"
+
+[build.nixpacksPlan.phases.setup]
+nixPkgs = ["python311"]
+
+[build.nixpacksPlan.phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[deploy]
+startCommand = "python mention_processor.py"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

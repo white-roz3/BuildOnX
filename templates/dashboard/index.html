@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{PROJECT_NAME}} - Dashboard</title>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            950: '#09090b',
+                            900: '#0a0a0b',
+                            800: '#141416',
+                            700: '#1f1f23',
+                            600: '#2a2a2e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            background: #09090b;
+            color: #fafafa;
+        }
+    </style>
+</head>
+<body class="dark">
+    <div class="min-h-screen flex">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-dark-900 border-r border-dark-700 p-6 shrink-0">
+            <h1 class="text-xl font-bold mb-8">{{PROJECT_NAME}}</h1>
+            <nav>
+                <ul class="space-y-2">
+                    <li>
+                        <a href="#" class="flex items-center gap-3 px-3 py-2 rounded bg-dark-800 text-white">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                            </svg>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center gap-3 px-3 py-2 rounded text-gray-400 hover:text-white hover:bg-dark-800 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                            </svg>
+                            Analytics
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center gap-3 px-3 py-2 rounded text-gray-400 hover:text-white hover:bg-dark-800 transition">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            Settings
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="flex-1 p-8">
+            <header class="mb-8">
+                <h2 class="text-2xl font-bold">Dashboard</h2>
+                <p class="text-gray-400">{{PROJECT_DESCRIPTION}}</p>
+            </header>
+            
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-dark-800 border border-dark-700 rounded-lg p-6">
+                    <p class="text-gray-400 text-sm mb-1">Total Revenue</p>
+                    <p class="text-3xl font-bold">$45,231</p>
+                    <p class="text-green-500 text-sm mt-2">↑ 12% from last month</p>
+                </div>
+                <div class="bg-dark-800 border border-dark-700 rounded-lg p-6">
+                    <p class="text-gray-400 text-sm mb-1">Active Users</p>
+                    <p class="text-3xl font-bold">2,350</p>
+                    <p class="text-green-500 text-sm mt-2">↑ 8% from last month</p>
+                </div>
+                <div class="bg-dark-800 border border-dark-700 rounded-lg p-6">
+                    <p class="text-gray-400 text-sm mb-1">Conversion Rate</p>
+                    <p class="text-3xl font-bold">3.2%</p>
+                    <p class="text-red-500 text-sm mt-2">↓ 2% from last month</p>
+                </div>
+                <div class="bg-dark-800 border border-dark-700 rounded-lg p-6">
+                    <p class="text-gray-400 text-sm mb-1">Avg. Order Value</p>
+                    <p class="text-3xl font-bold">$124</p>
+                    <p class="text-green-500 text-sm mt-2">↑ 4% from last month</p>
+                </div>
+            </div>
+            
+            <!-- Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-dark-800 border border-dark-700 rounded-lg p-6">
+                    <h3 class="text-lg font-semibold mb-4">Revenue Over Time</h3>
+                    <canvas id="revenueChart" height="200"></canvas>
+                </div>
+                <div class="bg-dark-800 border border-dark-700 rounded-lg p-6">
+                    <h3 class="text-lg font-semibold mb-4">Traffic Sources</h3>
+                    <canvas id="trafficChart" height="200"></canvas>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        // Revenue Chart
+        const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+        new Chart(revenueCtx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'Revenue',
+                    data: [30000, 35000, 32000, 40000, 38000, 45000],
+                    borderColor: '#22c55e',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { color: '#2a2a2e' },
+                        ticks: { color: '#888' }
+                    },
+                    y: {
+                        grid: { color: '#2a2a2e' },
+                        ticks: { color: '#888' }
+                    }
+                }
+            }
+        });
+        
+        // Traffic Chart
+        const trafficCtx = document.getElementById('trafficChart').getContext('2d');
+        new Chart(trafficCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Direct', 'Social', 'Organic', 'Referral'],
+                datasets: [{
+                    data: [40, 25, 20, 15],
+                    backgroundColor: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#888' }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+
