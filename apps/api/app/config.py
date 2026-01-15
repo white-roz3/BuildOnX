@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     app_name: str = "HeyClaude"
     debug: bool = False
     secret_key: str = "change-me-in-production"
-    base_domain: str = "heyclaude.app"
+    base_domain: str = "heyclaude.xyz"
     api_url: str = "https://heyclaude-api-production.up.railway.app"
     frontend_url: str = "https://heyclaude-web-production.up.railway.app"
     
