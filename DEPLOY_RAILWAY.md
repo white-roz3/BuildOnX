@@ -86,7 +86,7 @@ TWITTER_BEARER_TOKEN=your-bearer-token
 TWITTER_ACCESS_TOKEN=your-access-token
 TWITTER_ACCESS_SECRET=your-access-secret
 TWITTER_BOT_USER_ID=your-bot-user-id
-TWITTER_BOT_USERNAME=HeyClaude
+TWITTER_BOT_USERNAME=buildheyclaude
 ANTHROPIC_API_KEY=your-anthropic-key
 ```
 

@@ -290,7 +290,7 @@ def generate_slug(text: str) -> str:
     from slugify import slugify
     
     words = text.lower().split()
-    stop_words = {"a", "an", "the", "make", "me", "create", "build", "with", "and", "or", "for", "@heyclaude"}
+    stop_words = {"a", "an", "the", "make", "me", "create", "build", "with", "and", "or", "for", "@buildheyclaude"}
     meaningful = [w for w in words if w not in stop_words and not w.startswith("@")][:4]
     if not meaningful:
         meaningful = ["project"]

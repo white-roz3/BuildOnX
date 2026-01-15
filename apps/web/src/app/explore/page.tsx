@@ -57,7 +57,7 @@ export default function ExplorePage() {
           <div className="flex flex-col items-center justify-center py-20">
             <div className="text-claude-text-tertiary mb-4">No projects yet</div>
             <a
-              href="https://x.com/HeyClaude"
+              href="https://x.com/buildheyclaude"
               target="_blank"
               rel="noopener noreferrer"
               className="px-4 py-2 bg-claude-orange text-claude-bg font-medium rounded-lg hover:bg-claude-orange-light transition-colors text-sm"

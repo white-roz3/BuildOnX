@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     twitter_access_token: str = ""
     twitter_access_secret: str = ""
     twitter_bot_user_id: str = ""
-    twitter_bot_username: str = "HeyClaude"
+    twitter_bot_username: str = "buildheyclaude"
     twitter_bot_enabled: bool = True  # Enable/disable auto-processing of mentions
     
     # Anthropic

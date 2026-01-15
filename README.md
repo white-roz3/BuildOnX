@@ -4,12 +4,12 @@
 
 ## What is HeyClaude?
 
-HeyClaude is a platform that lets anyone tweet at @HeyClaude with a natural language prompt and receive a working deployed application in response. Users can then refine their projects through a web interface.
+HeyClaude is a platform that lets anyone tweet at @buildheyclaude with a natural language prompt and receive a working deployed application in response. Users can then refine their projects through a web interface.
 
 ### Example Interaction
 
 ```
-User: @HeyClaude make me a videogame news aggregator with dark mode and RSS feeds from IGN, Kotaku, and Polygon
+User: @buildheyclaude make me a videogame news aggregator with dark mode and RSS feeds from IGN, Kotaku, and Polygon
 
 HeyClaude: 🔨 Building your app...
 
@@ -61,7 +61,7 @@ heyclaude/
 ## Features
 
 ### Core Features
-- 🐦 **Tweet-to-Deploy**: Mention @HeyClaude to generate apps
+- 🐦 **Tweet-to-Deploy**: Mention @buildheyclaude to generate apps
 - 🤖 **AI Code Generation**: Claude-powered code generation
 - 🚀 **Instant Deployment**: Live URLs in seconds via Fly.io
 - ✏️ **Studio Editor**: Web-based code editor with live preview
@@ -151,7 +151,7 @@ TWITTER_BEARER_TOKEN=...
 TWITTER_ACCESS_TOKEN=...
 TWITTER_ACCESS_SECRET=...
 TWITTER_BOT_USER_ID=...
-TWITTER_BOT_USERNAME=HeyClaude
+TWITTER_BOT_USERNAME=buildheyclaude
 
 # Fly.io (for deployment)
 FLY_API_TOKEN=...
@@ -238,7 +238,7 @@ HeyClaude blocks:
 ┌─────────────────────────────────────────────────────────────────┐
 │                         Twitter                                  │
 │                           │                                      │
-│                    @HeyClaude mention                             │
+│                    @buildheyclaude mention                             │
 │                           ▼                                      │
 │  ┌─────────────────────────────────────────────────────────────┐ │
 │  │                     Worker                                   │ │

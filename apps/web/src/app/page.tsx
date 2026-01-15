@@ -55,7 +55,7 @@ export default function Home() {
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
           <a
-            href="https://x.com/HeyClaude"
+            href="https://x.com/buildheyclaude"
             target="_blank"
             rel="noopener noreferrer"
             className="px-6 py-3 bg-claude-orange text-claude-bg font-medium rounded-lg hover:bg-claude-orange-light transition-colors text-center"
