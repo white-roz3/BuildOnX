@@ -60,7 +60,7 @@ async def process_mention_build(
         await reply_to_tweet(
             tweet_id,
             f"🔨 Building your app, @{author_username}!\n\n"
-            f"Watch it live: https://heyclaude.app/build/{slug}\n\n"
+            f"Watch it live: https://heyclaude.xyz/build/{slug}\n\n"
             f"⏱️ Usually takes 30-60 seconds"
         )
         

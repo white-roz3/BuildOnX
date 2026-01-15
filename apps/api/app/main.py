@@ -55,8 +55,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://heyclaude.app",
-        "https://www.heyclaude.app",
+        "https://heyclaude.xyz",
+        "https://www.heyclaude.xyz",
         "https://heyclaude-web-production.up.railway.app",
     ],
     allow_credentials=True,

@@ -79,7 +79,7 @@ Click on each service and add these variables:
 DATABASE_URL=${{Postgres.DATABASE_URL}}
 REDIS_URL=${{Redis.REDIS_URL}}
 SECRET_KEY=your-secret-key-here
-BASE_DOMAIN=heyclaude.app
+BASE_DOMAIN=heyclaude.xyz
 TWITTER_API_KEY=your-twitter-key
 TWITTER_API_SECRET=your-twitter-secret
 TWITTER_BEARER_TOKEN=your-bearer-token
@@ -113,7 +113,7 @@ This is your **public frontend URL**! 🎉
 
 1. In `web` service → **Settings** → **Networking**
 2. Click **"+ Custom Domain"**
-3. Enter: `heyclaude.app`
+3. Enter: `heyclaude.xyz`
 4. Add the CNAME record to your DNS provider
 
 ---

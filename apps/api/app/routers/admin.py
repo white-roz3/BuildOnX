@@ -547,7 +547,7 @@ async def process_deployment(tweet_id: str):
             tweet_id,
             f"Hey @{mention['author_username']}! 👋\n\n"
             f"Building your app now! Watch it come to life:\n"
-            f"🔗 https://heyclaude.app/studio/{slug}\n\n"
+            f"🔗 https://heyclaude.xyz/studio/{slug}\n\n"
             f"You can edit it as soon as it's ready ✨"
         )
         
@@ -723,14 +723,14 @@ Respond with ONLY a JSON object:
         
         # Update mention state
         mention["status"] = "deployed"
-        mention["deployment_url"] = f"https://heyclaude.app/p/{slug}"
+        mention["deployment_url"] = f"https://heyclaude.xyz/p/{slug}"
         
         # Reply with success - friendly message
         reply_id = await reply_to_tweet(
             tweet_id,
             f"✅ Your app \"{result.get('name', 'Your App')}\" is ready!\n\n"
-            f"🌐 Live: https://heyclaude.app/p/{slug}\n"
-            f"🛠️ Edit it: https://heyclaude.app/studio/{slug}\n\n"
+            f"🌐 Live: https://heyclaude.xyz/p/{slug}\n"
+            f"🛠️ Edit it: https://heyclaude.xyz/studio/{slug}\n\n"
             f"Reply anytime to make changes! 🚀"
         )
         
@@ -1517,7 +1517,7 @@ async def force_reply(request: ReplyRequest):
             )
             row = result.fetchone()
             if row and row[1] == "deployed":
-                deployment_url = f"https://heyclaude.app/p/{slug}"
+                deployment_url = f"https://heyclaude.xyz/p/{slug}"
                 project_name = row[0] or "Your App"
     
     # If still no URL, try to find by tweet_id in database
@@ -1538,7 +1538,7 @@ async def force_reply(request: ReplyRequest):
             if row:
                 slug, name, status = row
                 if status == "deployed":
-                    deployment_url = f"https://heyclaude.app/p/{slug}"
+                    deployment_url = f"https://heyclaude.xyz/p/{slug}"
                     project_name = name or "Your App"
     
     if not deployment_url:

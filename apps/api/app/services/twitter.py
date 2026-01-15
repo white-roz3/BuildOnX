@@ -346,7 +346,7 @@ class TwitterService:
         text = (
             f"⏳ @{username} You've hit your build limit!\n\n"
             f"Free tier: 3 builds/hour\n"
-            f"Upgrade at heyclaude.app/pro for unlimited builds 🚀"
+            f"Upgrade at heyclaude.xyz/pro for unlimited builds 🚀"
         )
         return await self.reply_to_tweet(tweet_id, text)
 

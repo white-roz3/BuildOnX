@@ -45,7 +45,7 @@ class DeployerService:
         
         Returns:
             {
-                "url": "https://slug.heyclaude.app",
+                "url": "https://slug.heyclaude.xyz",
                 "deployment_id": "machine_id",
                 "status": "running"
             }

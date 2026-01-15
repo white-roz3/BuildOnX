@@ -14,8 +14,8 @@ User: @buildheyclaude make me a videogame news aggregator with dark mode and RSS
 HeyClaude: 🔨 Building your app...
 
 HeyClaude: ✅ Done! Your videogame news site is live:
-→ https://heyclaude.app/p/gamer-news-7x9k
-Edit & customize: https://heyclaude.app/studio/gamer-news-7x9k
+→ https://heyclaude.xyz/p/gamer-news-7x9k
+Edit & customize: https://heyclaude.xyz/studio/gamer-news-7x9k
 ```
 
 ## Tech Stack
@@ -167,7 +167,7 @@ ADMIN_API_KEY=your-secret-admin-key
 # App Settings
 DEBUG=true
 SECRET_KEY=change-me-in-production
-BASE_DOMAIN=heyclaude.app
+BASE_DOMAIN=heyclaude.xyz
 ```
 
 ## API Endpoints
@@ -210,7 +210,7 @@ Set up these cron jobs for production:
 0 * * * * cd /app && python scripts/cleanup_cron.py
 
 # Alternative: Run cleanup via API
-0 * * * * curl -X POST -H "X-Admin-Key: $ADMIN_KEY" https://api.heyclaude.app/api/admin/cleanup/all
+0 * * * * curl -X POST -H "X-Admin-Key: $ADMIN_KEY" https://api.heyclaude.xyz/api/admin/cleanup/all
 ```
 
 ## Pricing Tiers
