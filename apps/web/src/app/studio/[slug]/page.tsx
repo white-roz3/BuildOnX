@@ -1,410 +1,294 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import dynamic from "next/dynamic";
 import Link from "next/link";
-import {
-  Zap,
-  Save,
-  Play,
-  ExternalLink,
-  RefreshCw,
-  Send,
-  Loader2,
-  FileCode,
-  ChevronRight,
-  Copy,
-  Check,
-  Sparkles,
-} from "lucide-react";
+import dynamic from "next/dynamic";
+import { fetchProject, refineProject } from "@/lib/api";
 
-// Dynamically import Monaco to avoid SSR issues
-const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
-
-interface Project {
-  id: string;
-  slug: string;
-  name: string;
-  description: string;
-  files: Record<string, string>;
-  entry_point: string;
-  deployment_url: string;
-  deployment_status: string;
-  original_prompt: string;
-}
+const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
 export default function StudioPage() {
   const params = useParams();
   const slug = params.slug as string;
-
-  const [project, setProject] = useState<Project | null>(null);
-  const [files, setFiles] = useState<Record<string, string>>({});
-  const [activeFile, setActiveFile] = useState<string>("index.html");
+  const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // AI Chat state
+  const [activeFile, setActiveFile] = useState<string>("index.html");
+  const [activeTab, setActiveTab] = useState<"code" | "preview">("code");
   const [chatInput, setChatInput] = useState("");
-  const [chatHistory, setChatHistory] = useState<
-    Array<{ role: "user" | "assistant"; content: string }>
-  >([]);
+  const [chatMessages, setChatMessages] = useState<Array<{ role: string; content: string }>>([]);
   const [refining, setRefining] = useState(false);
+  const [showChat, setShowChat] = useState(true);
 
-  // Copy state
-  const [copied, setCopied] = useState(false);
-
-  // Fetch project
   useEffect(() => {
-    async function fetchProject() {
+    async function load() {
       try {
-        const res = await fetch(`/api/projects/${slug}`);
-        if (!res.ok) throw new Error("Project not found");
-        const data = await res.json();
+        const data = await fetchProject(slug);
         setProject(data);
-        setFiles(data.files || {});
-        setActiveFile(data.entry_point || Object.keys(data.files)[0] || "index.html");
+        if (data.files && Object.keys(data.files).length > 0) {
+          setActiveFile(Object.keys(data.files)[0]);
+        }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load project");
+        console.error(err);
       } finally {
         setLoading(false);
       }
     }
-    fetchProject();
+    if (slug) load();
   }, [slug]);
 
-  // Save project
-  const handleSave = async () => {
+  useEffect(() => {
     if (!project) return;
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/projects/${slug}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ files }),
-      });
-      if (!res.ok) throw new Error("Failed to save");
-      const updated = await res.json();
-      setProject(updated);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save");
-    } finally {
-      setSaving(false);
-    }
-  };
+    const interval = setInterval(async () => {
+      try {
+        const data = await fetchProject(slug);
+        if (JSON.stringify(data.files) !== JSON.stringify(project.files)) {
+          setProject(data);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [slug, project]);
 
-  // Refine with AI
   const handleRefine = async () => {
-    if (!chatInput.trim() || !project) return;
-
-    const userMessage = chatInput.trim();
-    setChatHistory((prev) => [...prev, { role: "user", content: userMessage }]);
-    setChatInput("");
+    if (!chatInput.trim() || refining) return;
     setRefining(true);
+    const userMessage = chatInput;
+    setChatInput("");
+    setChatMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    setChatMessages((prev) => [...prev, { role: "assistant", content: "Working on it..." }]);
 
     try {
-      const res = await fetch(`/api/projects/${slug}/refine`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          instruction: userMessage,
-          current_files: files,
-        }),
-      });
-
-      if (!res.ok) throw new Error("Refinement failed");
-
-      const updated = await res.json();
-      setFiles(updated.files);
+      await refineProject(slug, userMessage);
+      const updated = await fetchProject(slug);
       setProject(updated);
-      setChatHistory((prev) => [
-        ...prev,
-        { role: "assistant", content: "✨ Updated your project! Check the preview." },
-      ]);
-    } catch (err) {
-      setChatHistory((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `❌ ${err instanceof Error ? err.message : "Something went wrong"}`,
-        },
-      ]);
+      setChatMessages((prev) => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = { role: "assistant", content: "Done! Your project has been updated." };
+        return newMessages;
+      });
+    } catch (err: any) {
+      setChatMessages((prev) => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = { role: "assistant", content: `Error: ${err.message}` };
+        return newMessages;
+      });
     } finally {
       setRefining(false);
     }
   };
 
-  // Generate preview HTML
-  const generatePreview = useCallback(() => {
-    if (!files["index.html"]) {
-      return `<!DOCTYPE html>
-<html>
-<head><style>body{background:#111;color:#888;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style></head>
-<body>No preview available</body>
-</html>`;
-    }
-
-    // For simple static sites, return the HTML directly
-    // CSS and JS should be inline or referenced
-    return files["index.html"];
-  }, [files]);
-
-  // Copy URL
-  const copyUrl = () => {
-    if (project?.deployment_url) {
-      navigator.clipboard.writeText(project.deployment_url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  // Get file language for Monaco
-  const getLanguage = (filename: string) => {
-    const ext = filename.split(".").pop();
-    const map: Record<string, string> = {
-      html: "html",
-      css: "css",
-      js: "javascript",
-      ts: "typescript",
-      json: "json",
-      py: "python",
-      md: "markdown",
-    };
-    return map[ext || ""] || "plaintext";
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-dark-950 flex items-center justify-center">
-        <div className="flex items-center gap-3 text-primary-500">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          <span className="font-mono">Loading project...</span>
+      <div className="h-screen bg-claude-bg flex items-center justify-center">
+        <div className="text-claude-text-secondary">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="h-screen bg-claude-bg flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-semibold text-claude-text mb-4">Project not found</h1>
+          <Link href="/" className="text-claude-orange hover:text-claude-orange-light transition-colors">
+            Go home
+          </Link>
         </div>
       </div>
     );
   }
 
-  if (error || !project) {
-    return (
-      <div className="min-h-screen bg-dark-950 flex flex-col items-center justify-center gap-4">
-        <p className="text-red-500">{error || "Project not found"}</p>
-        <Link href="/" className="text-primary-500 hover:underline">
-          ← Back to home
-        </Link>
-      </div>
-    );
-  }
+  const files = project.files || {};
+  const currentFileContent = files[activeFile] || "";
 
   return (
-    <div className="h-screen bg-dark-950 flex flex-col overflow-hidden">
-      {/* Header */}
-      <header className="h-14 border-b border-dark-800 px-4 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-primary-500 rounded flex items-center justify-center">
-              <Zap className="w-4 h-4 text-dark-950" />
-            </div>
-            <span className="font-bold text-sm">BuildOnX</span>
+    <div className="h-screen flex flex-col bg-claude-bg text-claude-text overflow-hidden">
+      {/* Top Bar */}
+      <header className="h-12 border-b border-claude-border bg-claude-surface flex items-center px-4 shrink-0">
+        <Link href="/" className="flex items-center gap-2 mr-6">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-claude-orange">
+            <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="currentColor"/>
+          </svg>
+          <span className="text-claude-text font-medium">HeyClaude</span>
+        </Link>
+        <div className="flex-1 text-sm text-claude-text-secondary truncate">{project.name || "Untitled"}</div>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/p/${slug}`}
+            className="px-3 py-1.5 text-sm text-claude-text-secondary hover:text-claude-text transition-colors"
+          >
+            View Project
           </Link>
-          <ChevronRight className="w-4 h-4 text-dark-600" />
-          <span className="font-medium truncate max-w-[200px]">{project.name}</span>
-          {project.deployment_status === "live" && (
-            <span className="px-2 py-0.5 bg-primary-500/20 text-primary-500 text-xs rounded-full">
-              Live
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Copy URL */}
-          <button
-            onClick={copyUrl}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-dark-400 hover:text-white transition"
-          >
-            {copied ? (
-              <Check className="w-4 h-4 text-primary-500" />
-            ) : (
-              <Copy className="w-4 h-4" />
-            )}
-            {copied ? "Copied!" : "Copy URL"}
-          </button>
-
-          {/* View Live */}
-          <a
-            href={project.deployment_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-dark-400 hover:text-white transition"
-          >
-            <ExternalLink className="w-4 h-4" />
-            View Live
-          </a>
-
-          {/* Save Button */}
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2 bg-primary-500 text-dark-950 px-4 py-1.5 text-sm font-medium hover:bg-primary-400 disabled:opacity-50 transition"
-          >
-            {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-            {saving ? "Deploying..." : "Save & Deploy"}
-          </button>
         </div>
       </header>
 
-      {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {/* File Sidebar */}
-        <div className="w-48 border-r border-dark-800 flex flex-col shrink-0">
-          <div className="p-3 border-b border-dark-800">
-            <span className="text-xs text-dark-500 uppercase tracking-wider">Files</span>
+        <div className="w-48 border-r border-claude-border flex flex-col shrink-0 bg-claude-surface">
+          <div className="px-3 py-2 border-b border-claude-border">
+            <h3 className="text-xs font-medium text-claude-text-tertiary uppercase tracking-wide">Files</h3>
           </div>
-          <div className="flex-1 overflow-y-auto p-2">
+          <div className="flex-1 overflow-y-auto py-1">
             {Object.keys(files).map((filename) => (
               <button
                 key={filename}
                 onClick={() => setActiveFile(filename)}
-                className={`w-full text-left px-3 py-2 text-sm rounded flex items-center gap-2 transition ${
+                className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
                   activeFile === filename
-                    ? "bg-dark-800 text-white"
-                    : "text-dark-400 hover:text-white hover:bg-dark-800/50"
+                    ? "bg-claude-surface-elevated text-claude-orange"
+                    : "text-claude-text-secondary hover:text-claude-text hover:bg-claude-surface-elevated"
                 }`}
               >
-                <FileCode className="w-4 h-4 shrink-0" />
-                <span className="truncate">{filename}</span>
+                {filename}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Editor + Preview */}
+        {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0">
-          <div className="flex-1 flex min-h-0">
-            {/* Code Editor */}
-            <div className="flex-1 flex flex-col min-w-0 border-r border-dark-800">
-              <div className="h-10 border-b border-dark-800 px-4 flex items-center">
-                <span className="text-sm text-dark-400 font-mono">{activeFile}</span>
-              </div>
-              <div className="flex-1">
-                <Editor
-                  height="100%"
-                  language={getLanguage(activeFile)}
-                  theme="vs-dark"
-                  value={files[activeFile] || ""}
-                  onChange={(value) =>
-                    setFiles((prev) => ({ ...prev, [activeFile]: value || "" }))
-                  }
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: 13,
-                    fontFamily: "var(--font-mono), monospace",
-                    padding: { top: 16, bottom: 16 },
-                    scrollBeyondLastLine: false,
-                    wordWrap: "on",
-                    tabSize: 2,
-                    lineNumbers: "on",
-                    renderLineHighlight: "line",
-                    cursorBlinking: "smooth",
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Preview */}
-            <div className="w-[45%] flex flex-col shrink-0">
-              <div className="h-10 border-b border-dark-800 px-4 flex items-center justify-between">
-                <span className="text-sm text-dark-400">Preview</span>
-                <button
-                  onClick={() => {
-                    // Force iframe refresh
-                    const iframe = document.querySelector("iframe");
-                    if (iframe) {
-                      iframe.srcdoc = generatePreview();
-                    }
-                  }}
-                  className="p-1 text-dark-500 hover:text-white transition"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="flex-1 bg-white">
-                <iframe
-                  srcDoc={generatePreview()}
-                  className="w-full h-full border-0"
-                  sandbox="allow-scripts allow-same-origin"
-                  title="Preview"
-                />
-              </div>
-            </div>
+          {/* Tab Bar */}
+          <div className="h-10 border-b border-claude-border bg-claude-surface flex items-center px-2 shrink-0">
+            <button
+              onClick={() => setActiveTab("code")}
+              className={`px-3 py-1.5 text-sm rounded transition-colors ${
+                activeTab === "code"
+                  ? "bg-claude-surface-elevated text-claude-text"
+                  : "text-claude-text-secondary hover:text-claude-text"
+              }`}
+            >
+              Code
+            </button>
+            <button
+              onClick={() => setActiveTab("preview")}
+              className={`px-3 py-1.5 text-sm rounded transition-colors ${
+                activeTab === "preview"
+                  ? "bg-claude-surface-elevated text-claude-text"
+                  : "text-claude-text-secondary hover:text-claude-text"
+              }`}
+            >
+              Preview
+            </button>
+            <div className="flex-1" />
+            <button
+              onClick={() => setShowChat(!showChat)}
+              className={`px-3 py-1.5 text-sm rounded transition-colors ${
+                showChat
+                  ? "bg-claude-orange/20 text-claude-orange"
+                  : "text-claude-text-secondary hover:text-claude-text"
+              }`}
+            >
+              Chat
+            </button>
           </div>
 
-          {/* AI Chat Panel */}
-          <div className="h-48 border-t border-dark-800 flex flex-col shrink-0">
-            <div className="h-10 border-b border-dark-800 px-4 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-primary-500" />
-              <span className="text-sm font-medium">AI Assistant</span>
-            </div>
-            
-            {/* Chat History */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-              {chatHistory.length === 0 && (
-                <p className="text-sm text-dark-500">
-                  Describe what changes you want to make...
-                </p>
-              )}
-              {chatHistory.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`text-sm ${
-                    msg.role === "user" ? "text-dark-300" : "text-primary-500"
-                  }`}
-                >
-                  <span className="text-dark-600">{msg.role === "user" ? "> " : "← "}</span>
-                  {msg.content}
-                </div>
-              ))}
-              {refining && (
-                <div className="text-sm text-primary-500 flex items-center gap-2">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  Generating changes...
+          {/* Editor / Preview Area */}
+          <div className="flex-1 flex min-h-0">
+            <div className="flex-1 min-w-0">
+              {activeTab === "code" ? (
+                <MonacoEditor
+                  height="100%"
+                  language={
+                    activeFile.endsWith(".html") ? "html" :
+                    activeFile.endsWith(".css") ? "css" :
+                    activeFile.endsWith(".js") ? "javascript" : "plaintext"
+                  }
+                  value={currentFileContent}
+                  theme="vs-dark"
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 14,
+                    lineNumbers: "on",
+                    scrollBeyondLastLine: false,
+                    padding: { top: 16, bottom: 16 },
+                    fontFamily: "'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace",
+                  }}
+                />
+              ) : (
+                <div className="h-full bg-white">
+                  {currentFileContent ? (
+                    <iframe
+                      srcDoc={files["index.html"] || currentFileContent}
+                      className="w-full h-full border-0"
+                      title="Preview"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-claude-text-tertiary">
+                      No preview available
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* Chat Input */}
-            <div className="p-3 border-t border-dark-800">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleRefine()}
-                  placeholder="e.g., 'make the header sticky' or 'add a footer with social links'"
-                  disabled={refining}
-                  className="flex-1 bg-dark-900 border border-dark-700 px-4 py-2 text-sm placeholder:text-dark-600 focus:border-primary-500 focus:outline-none disabled:opacity-50"
-                />
-                <button
-                  onClick={handleRefine}
-                  disabled={refining || !chatInput.trim()}
-                  className="bg-dark-800 hover:bg-dark-700 disabled:opacity-50 px-4 py-2 transition flex items-center gap-2"
-                >
-                  {refining ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+            {/* Chat Panel */}
+            {showChat && (
+              <div className="w-80 border-l border-claude-border flex flex-col bg-claude-surface shrink-0">
+                <div className="px-4 py-3 border-b border-claude-border">
+                  <h3 className="text-sm font-medium text-claude-text">Ask Claude to edit</h3>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {chatMessages.length === 0 ? (
+                    <p className="text-sm text-claude-text-tertiary">
+                      Describe changes you want to make to your project.
+                    </p>
                   ) : (
-                    <Send className="w-4 h-4" />
+                    chatMessages.map((msg, idx) => (
+                      <div
+                        key={idx}
+                        className={`text-sm ${
+                          msg.role === "user"
+                            ? "text-claude-text"
+                            : "text-claude-text-secondary"
+                        }`}
+                      >
+                        <span className={`font-medium ${msg.role === "user" ? "text-claude-orange" : "text-claude-text-tertiary"}`}>
+                          {msg.role === "user" ? "You" : "Claude"}:
+                        </span>{" "}
+                        {msg.content}
+                      </div>
+                    ))
                   )}
-                </button>
+                </div>
+                <div className="p-3 border-t border-claude-border">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleRefine();
+                    }}
+                    className="flex flex-col gap-2"
+                  >
+                    <textarea
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      placeholder="Ask Claude to edit..."
+                      rows={3}
+                      className="w-full px-3 py-2 bg-claude-bg border border-claude-border rounded-lg text-sm text-claude-text placeholder-claude-text-tertiary focus:outline-none focus:border-claude-orange resize-none"
+                      disabled={refining}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleRefine();
+                        }
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={refining || !chatInput.trim()}
+                      className="w-full px-4 py-2 bg-claude-orange text-claude-bg font-medium rounded-lg hover:bg-claude-orange-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm"
+                    >
+                      {refining ? "Working..." : "Send"}
+                    </button>
+                  </form>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 }
-

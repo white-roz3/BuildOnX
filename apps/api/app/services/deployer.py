@@ -45,7 +45,7 @@ class DeployerService:
         
         Returns:
             {
-                "url": "https://slug.BuildOnX.app",
+                "url": "https://slug.heyclaude.app",
                 "deployment_id": "machine_id",
                 "status": "running"
             }

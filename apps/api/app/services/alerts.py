@@ -72,7 +72,7 @@ class AlertService:
             "description": message,
             "color": color,
             "timestamp": datetime.utcnow().isoformat(),
-            "footer": {"text": "BuildOnX Alerts"},
+            "footer": {"text": "HeyClaude Alerts"},
         }
         
         if fields:
@@ -218,4 +218,5 @@ class AlertService:
 
 # Singleton
 alerts = AlertService()
+
 

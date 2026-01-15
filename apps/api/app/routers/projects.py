@@ -7,6 +7,7 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import text
 from pydantic import BaseModel, Field
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -324,13 +325,16 @@ async def update_project(
     return ProjectResponse.model_validate(project)
 
 
-@router.post("/{slug}/refine", response_model=ProjectResponse)
+@router.post("/{slug}/refine")
 async def refine_project(
     slug: str,
     data: ProjectRefine,
     db: AsyncSession = Depends(get_db),
 ):
-    """Refine a project with AI assistance."""
+    """Refine a project with AI assistance - runs in background."""
+    import asyncio
+    from app.config import settings
+    
     result = await db.execute(
         select(Project).where(Project.slug == slug)
     )
@@ -339,72 +343,99 @@ async def refine_project(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
-    builder = BuilderService()
-    deployer = DeployerService()
+    if not settings.anthropic_api_key:
+        raise HTTPException(status_code=500, detail="AI service not configured")
+    
+    # Mark as refining
+    project.deployment_status = "building"
+    await db.commit()
     
     # Use provided files or project's current files
     current_files = data.current_files or project.files
+    instruction = data.instruction
+    project_slug = slug
     
-    # Create build record
-    build = Build(
-        project_id=project.id,
-        prompt=data.instruction,
-        prompt_type="refine",
-        status="building",
-        started_at=datetime.utcnow(),
-    )
-    db.add(build)
-    await db.flush()
+    # Run in background with asyncio.create_task for proper async handling
+    async def do_refine():
+        from anthropic import AsyncAnthropic
+        from sqlalchemy import text as sql_text
+        import json
+        from app.database import async_session
+        
+        print(f"🔄 Starting refine for {project_slug}: {instruction[:50]}...")
+        
+        try:
+            client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+            
+            # Keep context minimal for speed
+            files_context = json.dumps(current_files, indent=2)
+            if len(files_context) > 6000:
+                files_context = files_context[:6000] + "\n..."
+            
+            response = await client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=4000,
+                system="""You refine web apps. Output ONLY valid JSON:
+{"name": "App Name", "files": {"index.html": "<full html content>"}}
+Keep dark theme. Include ALL original content plus the requested change.""",
+                messages=[{"role": "user", "content": f"Current files:\n{files_context}\n\nMake this change: {instruction}"}]
+            )
+            
+            response_text = response.content[0].text.strip()
+            print(f"📝 Got response ({len(response_text)} chars)")
+            
+            # Strip markdown
+            if response_text.startswith("```"):
+                lines = response_text.split("\n")
+                response_text = "\n".join(lines[1:])
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
+            response_text = response_text.strip()
+            
+            # Parse JSON
+            ai_result = None
+            try:
+                ai_result = json.loads(response_text)
+            except:
+                start = response_text.find("{")
+                end = response_text.rfind("}") + 1
+                if start >= 0 and end > start:
+                    ai_result = json.loads(response_text[start:end])
+            
+            if not ai_result or "files" not in ai_result:
+                print(f"⚠️ Could not parse response, keeping original files")
+                ai_result = {"files": current_files, "name": "Updated Project"}
+            
+            async with async_session() as db2:
+                await db2.execute(
+                    sql_text("""UPDATE projects SET 
+                        files = :files, name = :name, 
+                        deployment_status = 'deployed', updated_at = NOW()
+                        WHERE slug = :slug"""),
+                    {
+                        "slug": project_slug,
+                        "files": json.dumps(ai_result.get("files", current_files)),
+                        "name": ai_result.get("name", "Updated Project"),
+                    }
+                )
+                await db2.commit()
+            print(f"✅ Refine completed for {project_slug}")
+            
+        except Exception as e:
+            import traceback
+            print(f"❌ Refine failed for {project_slug}: {str(e)}")
+            print(traceback.format_exc())
+            async with async_session() as db2:
+                await db2.execute(
+                    sql_text("UPDATE projects SET deployment_status = 'deployed' WHERE slug = :slug"),
+                    {"slug": project_slug}
+                )
+                await db2.commit()
     
-    try:
-        # Generate refined code
-        result = await builder.generate_project(
-            prompt=project.original_prompt,
-            template_hint=project.template,
-            existing_files=current_files,
-            refinement_instructions=data.instruction,
-        )
-        
-        # Update project
-        project.files = result["files"]
-        if result.get("name"):
-            project.name = result["name"]
-        if result.get("description"):
-            project.description = result["description"]
-        
-        # Redeploy
-        deployment = await deployer.deploy(
-            project_id=str(project.id),
-            slug=slug,
-            files=result["files"],
-            entry_point=result.get("entry_point", project.entry_point),
-        )
-        
-        project.deployment_url = deployment["url"]
-        project.deployment_id = deployment["deployment_id"]
-        project.deployment_status = "live"
-        
-        # Update build
-        build.status = "complete"
-        build.completed_at = datetime.utcnow()
-        build.generated_files = result["files"]
-        build.tokens_used = result.get("tokens_used", 0)
-        build.ai_model = result.get("ai_model")
-        
-        project.updated_at = datetime.utcnow()
-        await db.commit()
-        await db.refresh(project)
-        
-        return ProjectResponse.model_validate(project)
-        
-    except Exception as e:
-        build.status = "failed"
-        build.error_message = str(e)
-        build.completed_at = datetime.utcnow()
-        
-        await db.commit()
-        
-        raise HTTPException(status_code=500, detail=f"Refinement failed: {str(e)}")
+    # Use asyncio.create_task for proper async background execution
+    asyncio.create_task(do_refine())
+    
+    return {"status": "refining", "slug": slug, "message": "Applying changes..."}
 
 
 @router.delete("/{slug}")

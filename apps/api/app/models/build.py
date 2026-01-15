@@ -75,3 +75,4 @@ class Build(Base):
             return (self.completed_at - self.started_at).total_seconds()
         return None
 
+

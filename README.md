@@ -1,21 +1,21 @@
-# BuildOnX 🚀
+# HeyClaude 🚀
 
 **Tweet to Deploy** - Build apps with a tweet. Just @ us.
 
-## What is BuildOnX?
+## What is HeyClaude?
 
-BuildOnX is a platform that lets anyone tweet at @BuildAppsOnX with a natural language prompt and receive a working deployed application in response. Users can then refine their projects through a web interface.
+HeyClaude is a platform that lets anyone tweet at @HeyClaude with a natural language prompt and receive a working deployed application in response. Users can then refine their projects through a web interface.
 
 ### Example Interaction
 
 ```
-User: @BuildAppsOnX make me a videogame news aggregator with dark mode and RSS feeds from IGN, Kotaku, and Polygon
+User: @HeyClaude make me a videogame news aggregator with dark mode and RSS feeds from IGN, Kotaku, and Polygon
 
-BuildOnX: 🔨 Building your app...
+HeyClaude: 🔨 Building your app...
 
-BuildOnX: ✅ Done! Your videogame news site is live:
-→ https://BuildOnX.app/p/gamer-news-7x9k
-Edit & customize: https://BuildOnX.app/studio/gamer-news-7x9k
+HeyClaude: ✅ Done! Your videogame news site is live:
+→ https://heyclaude.app/p/gamer-news-7x9k
+Edit & customize: https://heyclaude.app/studio/gamer-news-7x9k
 ```
 
 ## Tech Stack
@@ -29,7 +29,7 @@ Edit & customize: https://BuildOnX.app/studio/gamer-news-7x9k
 ## Project Structure
 
 ```
-buildonx/
+heyclaude/
 ├── apps/
 │   ├── api/                    # FastAPI backend
 │   │   ├── app/
@@ -61,7 +61,7 @@ buildonx/
 ## Features
 
 ### Core Features
-- 🐦 **Tweet-to-Deploy**: Mention @BuildAppsOnX to generate apps
+- 🐦 **Tweet-to-Deploy**: Mention @HeyClaude to generate apps
 - 🤖 **AI Code Generation**: Claude-powered code generation
 - 🚀 **Instant Deployment**: Live URLs in seconds via Fly.io
 - ✏️ **Studio Editor**: Web-based code editor with live preview
@@ -140,7 +140,7 @@ python mention_processor.py
 
 ```bash
 # Required
-DATABASE_URL=postgresql+asyncpg://buildonx:buildonx@localhost:5432/buildonx
+DATABASE_URL=postgresql+asyncpg://heyclaude:heyclaude@localhost:5432/heyclaude
 REDIS_URL=redis://localhost:6379
 ANTHROPIC_API_KEY=sk-ant-...
 
@@ -151,7 +151,7 @@ TWITTER_BEARER_TOKEN=...
 TWITTER_ACCESS_TOKEN=...
 TWITTER_ACCESS_SECRET=...
 TWITTER_BOT_USER_ID=...
-TWITTER_BOT_USERNAME=BuildOnX
+TWITTER_BOT_USERNAME=HeyClaude
 
 # Fly.io (for deployment)
 FLY_API_TOKEN=...
@@ -167,7 +167,7 @@ ADMIN_API_KEY=your-secret-admin-key
 # App Settings
 DEBUG=true
 SECRET_KEY=change-me-in-production
-BASE_DOMAIN=BuildOnX.app
+BASE_DOMAIN=heyclaude.app
 ```
 
 ## API Endpoints
@@ -210,7 +210,7 @@ Set up these cron jobs for production:
 0 * * * * cd /app && python scripts/cleanup_cron.py
 
 # Alternative: Run cleanup via API
-0 * * * * curl -X POST -H "X-Admin-Key: $ADMIN_KEY" https://api.BuildOnX.app/api/admin/cleanup/all
+0 * * * * curl -X POST -H "X-Admin-Key: $ADMIN_KEY" https://api.heyclaude.app/api/admin/cleanup/all
 ```
 
 ## Pricing Tiers
@@ -225,7 +225,7 @@ Set up these cron jobs for production:
 
 ## Content Moderation
 
-BuildOnX blocks:
+HeyClaude blocks:
 - 🚫 Phishing pages (fake login forms)
 - 🚫 Malware/cryptominers
 - 🚫 Credential stealers
@@ -238,7 +238,7 @@ BuildOnX blocks:
 ┌─────────────────────────────────────────────────────────────────┐
 │                         Twitter                                  │
 │                           │                                      │
-│                    @BuildAppsOnX mention                             │
+│                    @HeyClaude mention                             │
 │                           ▼                                      │
 │  ┌─────────────────────────────────────────────────────────────┐ │
 │  │                     Worker                                   │ │

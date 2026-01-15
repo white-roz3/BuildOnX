@@ -17,10 +17,12 @@ class Settings(BaseSettings):
     )
     
     # App
-    app_name: str = "BuildOnX"
+    app_name: str = "HeyClaude"
     debug: bool = False
     secret_key: str = "change-me-in-production"
-    base_domain: str = "BuildOnX.app"
+    base_domain: str = "heyclaude.app"
+    api_url: str = "https://heyclaude-api-production.up.railway.app"
+    frontend_url: str = "https://heyclaude-web-production.up.railway.app"
     
     # Database (Railway provides postgresql://, we need postgresql+asyncpg://)
     database_url: str = "postgresql+asyncpg://buildonx:buildonx@localhost:5432/buildonx"
@@ -45,7 +47,8 @@ class Settings(BaseSettings):
     twitter_access_token: str = ""
     twitter_access_secret: str = ""
     twitter_bot_user_id: str = ""
-    twitter_bot_username: str = "BuildAppsOnX"
+    twitter_bot_username: str = "HeyClaude"
+    twitter_bot_enabled: bool = True  # Enable/disable auto-processing of mentions
     
     # Anthropic
     anthropic_api_key: str = ""

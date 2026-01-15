@@ -1,5 +1,5 @@
 """
-BuildOnX API - Main FastAPI application.
+HeyClaude API - Main FastAPI application.
 """
 
 from contextlib import asynccontextmanager
@@ -25,7 +25,7 @@ from app.middleware.rate_limit import RateLimitMiddleware
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
-    print("🚀 Starting BuildOnX API...")
+    print("🚀 Starting HeyClaude API...")
     try:
         await init_db()
         print("✅ Database initialized")
@@ -35,11 +35,11 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    print("👋 Shutting down BuildOnX API...")
+    print("👋 Shutting down HeyClaude API...")
 
 
 app = FastAPI(
-    title="BuildOnX API",
+    title="HeyClaude API",
     description="Build apps with a tweet. Just @ us.",
     version="1.0.0",
     lifespan=lifespan,
@@ -55,8 +55,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://BuildOnX.app",
-        "https://*.BuildOnX.app",
+        "https://heyclaude.app",
+        "https://www.heyclaude.app",
+        "https://heyclaude-web-production.up.railway.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -81,7 +82,7 @@ app.include_router(ws_router)  # WebSocket at root level
 async def root():
     """API root endpoint."""
     return {
-        "name": "BuildOnX API",
+        "name": "HeyClaude API",
         "version": "1.0.0",
         "status": "operational",
         "docs": "/docs",

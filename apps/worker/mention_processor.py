@@ -1,28 +1,37 @@
 """
-Twitter mention processor - the heart of BuildOnX.
+Twitter mention processor - the heart of HeyClaude.
 
-This worker listens for @BuildAppsOnX mentions and orchestrates the build pipeline:
-1. Detect new mentions
+Uses the Mentions Timeline API with efficient polling (Basic tier compatible).
+- Polls every 60 seconds = ~1,440 calls/day (well under 15,000 reads/month limit)
+- Deduplicates via Redis to never process the same tweet twice
+
+1. Poll for new mentions
 2. Parse the build request
 3. Generate code using AI
-4. Deploy to Fly.io
+4. Save to database
 5. Reply with the live URL
 """
 
 import asyncio
 import sys
 import os
+import json
 from datetime import datetime, timedelta
 from typing import Optional
 
+import httpx
 import redis.asyncio as redis
-from sqlalchemy import select
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import settings
+
+# Poll every 60 seconds - uses ~1,440 API calls/day = ~43,200/month
+# Basic tier allows 15,000 reads/month, so we'll use adaptive polling
+POLL_INTERVAL = 60
 
 
 # ─────────────────────────────────────────────────────────────
@@ -31,14 +40,6 @@ from config import settings
 
 engine = create_async_engine(settings.async_database_url, echo=False)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-
-# ─────────────────────────────────────────────────────────────
-# Import services from API app
-# ─────────────────────────────────────────────────────────────
-
-# We'll import inline to avoid circular dependencies
-# In production, you'd have a shared package
 
 
 def generate_slug(text: str) -> str:
@@ -58,16 +59,34 @@ def generate_slug(text: str) -> str:
 
 
 class TwitterClient:
-    """Minimal Twitter client for the worker."""
+    """Twitter client with OAuth 1.0a for posting and streaming."""
     
     BASE_URL = "https://api.twitter.com/2"
     
     def __init__(self):
-        import httpx
-        self.httpx = httpx
+        import hashlib
+        import hmac
+        import base64
+        import time
+        import urllib.parse
+        import uuid
+        
+        self.hashlib = hashlib
+        self.hmac = hmac
+        self.base64 = base64
+        self.time = time
+        self.urllib = urllib
+        self.uuid = uuid
+        
         self.bearer_token = settings.twitter_bearer_token
         self.bot_username = settings.twitter_bot_username
         self.bot_user_id = settings.twitter_bot_user_id
+        
+        # OAuth 1.0a credentials for posting
+        self.consumer_key = settings.twitter_api_key
+        self.consumer_secret = settings.twitter_api_secret
+        self.access_token = settings.twitter_access_token
+        self.access_secret = settings.twitter_access_secret
     
     @property
     def headers(self):
@@ -76,57 +95,136 @@ class TwitterClient:
             "Content-Type": "application/json",
         }
     
-    async def poll_mentions(self, since_id: Optional[str] = None) -> list:
-        """Poll for recent mentions."""
+    def _oauth_signature(self, method: str, url: str, params: dict) -> str:
+        """Generate OAuth 1.0a signature."""
+        sorted_params = sorted(params.items())
+        param_string = "&".join(f"{k}={self.urllib.parse.quote(str(v), safe='')}" for k, v in sorted_params)
+        
+        base_string = "&".join([
+            method.upper(),
+            self.urllib.parse.quote(url, safe=""),
+            self.urllib.parse.quote(param_string, safe=""),
+        ])
+        
+        signing_key = "&".join([
+            self.urllib.parse.quote(self.consumer_secret, safe=""),
+            self.urllib.parse.quote(self.access_secret, safe=""),
+        ])
+        
+        signature = self.base64.b64encode(
+            self.hmac.new(
+                signing_key.encode(),
+                base_string.encode(),
+                self.hashlib.sha1
+            ).digest()
+        ).decode()
+        
+        return signature
+    
+    def _oauth_header(self, method: str, url: str, body_params: dict = None) -> str:
+        """Generate OAuth 1.0a Authorization header."""
+        oauth_params = {
+            "oauth_consumer_key": self.consumer_key,
+            "oauth_nonce": self.uuid.uuid4().hex,
+            "oauth_signature_method": "HMAC-SHA1",
+            "oauth_timestamp": str(int(self.time.time())),
+            "oauth_token": self.access_token,
+            "oauth_version": "1.0",
+        }
+        
+        all_params = {**oauth_params}
+        if body_params:
+            all_params.update(body_params)
+        
+        oauth_params["oauth_signature"] = self._oauth_signature(method, url, all_params)
+        
+        header_parts = [f'{k}="{self.urllib.parse.quote(str(v), safe="")}"' for k, v in sorted(oauth_params.items())]
+        return "OAuth " + ", ".join(header_parts)
+    
+    async def get_mentions(self, since_id: Optional[str] = None) -> list:
+        """Fetch mentions using the mentions timeline endpoint (Basic tier compatible)."""
+        if not self.bot_user_id:
+            print("❌ TWITTER_BOT_USER_ID not configured!")
+            return []
+        
         url = f"{self.BASE_URL}/users/{self.bot_user_id}/mentions"
         params = {
-            "max_results": 100,
             "expansions": "author_id",
             "tweet.fields": "created_at,conversation_id",
             "user.fields": "username,name,profile_image_url",
+            "max_results": 10,
         }
         
         if since_id:
             params["since_id"] = since_id
         
-        async with self.httpx.AsyncClient() as client:
+        async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=self.headers, params=params)
-            data = response.json()
             
-            if "data" not in data:
+            if response.status_code == 429:
+                retry_after = response.headers.get("x-rate-limit-reset", "unknown")
+                print(f"⚠️ Rate limited! Resets at: {retry_after}")
                 return []
             
-            users = {u["id"]: u for u in data.get("includes", {}).get("users", [])}
-            mentions = []
+            if response.status_code != 200:
+                print(f"❌ Mentions fetch failed ({response.status_code}): {response.text[:200]}")
+                return []
             
+            data = response.json()
+            
+            if not data.get("data"):
+                return []
+            
+            # Build user lookup
+            users = {u["id"]: u for u in data.get("includes", {}).get("users", [])}
+            
+            mentions = []
             for tweet in data["data"]:
                 author = users.get(tweet["author_id"], {})
-                prompt = tweet["text"].replace(f"@{self.bot_username}", "").strip()
-                
                 mentions.append({
                     "tweet_id": tweet["id"],
                     "author_id": tweet["author_id"],
                     "author_username": author.get("username", "user"),
                     "author_name": author.get("name"),
-                    "author_image": author.get("profile_image_url"),
-                    "prompt": prompt,
+                    "prompt": tweet["text"].replace(f"@{self.bot_username}", "").strip(),
                     "conversation_id": tweet.get("conversation_id"),
-                    "created_at": tweet.get("created_at"),
                 })
             
             return mentions
     
     async def reply(self, tweet_id: str, text: str) -> dict:
-        """Reply to a tweet (simplified - needs OAuth 1.0a in production)."""
-        # This is a placeholder - full implementation needs OAuth signing
-        print(f"[REPLY] To {tweet_id}: {text[:100]}...")
-        return {"data": {"id": "mock_reply_id"}}
+        """Reply to a tweet using OAuth 1.0a."""
+        url = f"{self.BASE_URL}/tweets"
+        
+        payload = {
+            "text": text,
+            "reply": {"in_reply_to_tweet_id": tweet_id}
+        }
+        
+        auth_header = self._oauth_header("POST", url)
+        headers = {
+            "Authorization": auth_header,
+            "Content-Type": "application/json",
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, headers=headers, json=payload)
+            result = response.json()
+            
+            if response.status_code in [200, 201]:
+                print(f"✅ [REPLY] Posted to {tweet_id}: {text[:50]}...")
+                return result
+            else:
+                print(f"❌ [REPLY] Failed ({response.status_code}): {result}")
+                return {"error": result}
     
-    async def post_building(self, tweet_id: str, username: str):
-        """Post that build is starting."""
+    async def post_building(self, tweet_id: str, username: str, build_url: str):
+        """Post that build is starting with link."""
         return await self.reply(
             tweet_id,
-            f"🔨 Building your app, @{username}...\n\nThis usually takes 30-60 seconds."
+            f"🔨 Building your app, @{username}!\n\n"
+            f"Watch it happen live:\n{build_url}\n\n"
+            f"⏱️ Usually takes 30-60 seconds"
         )
     
     async def post_complete(self, tweet_id: str, username: str, project_url: str, studio_url: str, name: str):
@@ -193,9 +291,8 @@ class AIBuilder:
         self.client = AsyncAnthropic(api_key=settings.anthropic_api_key)
         self.moderator = ContentModerator()
     
-    async def generate(self, prompt: str, template: str = "static-site") -> dict:
+    async def generate(self, prompt: str) -> dict:
         """Generate a complete project from a prompt."""
-        import json
         
         system_prompt = """You are BuildOnX, an expert developer that generates complete web apps.
 
@@ -224,14 +321,12 @@ Respond with ONLY a JSON object:
         text = response.content[0].text.strip()
         
         try:
-            # Try to parse JSON
             if text.startswith("```"):
                 text = text.split("```")[1]
                 if text.startswith("json"):
                     text = text[4:]
             return json.loads(text)
         except:
-            # Fallback
             return {
                 "name": "Generated App",
                 "description": prompt[:100],
@@ -240,154 +335,221 @@ Respond with ONLY a JSON object:
             }
 
 
-class Deployer:
-    """Fly.io deployment client."""
+class ProjectSaver:
+    """Saves projects directly to the database."""
     
-    def __init__(self):
-        import httpx
-        import base64
-        self.httpx = httpx
-        self.base64 = base64
-        self.token = settings.fly_api_token
-        self.org = settings.fly_org
-        self.api_base = "https://api.machines.dev/v1"
-    
-    @property
-    def headers(self):
-        return {
-            "Authorization": f"Bearer {self.token}",
-            "Content-Type": "application/json",
-        }
-    
-    async def deploy(self, project_id: str, slug: str, files: dict, entry_point: str = "index.html") -> dict:
-        """Deploy files to Fly.io."""
-        app_name = f"bx-{slug}"[:24]
+    async def create_build(
+        self,
+        slug: str,
+        prompt: str,
+        author_id: str,
+        author_username: str,
+        tweet_id: str,
+    ) -> dict:
+        """Create initial build record."""
+        import uuid
         
-        # Ensure app exists
-        async with self.httpx.AsyncClient() as client:
-            # Create app
-            await client.post(
-                f"{self.api_base}/apps",
-                headers=self.headers,
-                json={"app_name": app_name, "org_slug": self.org},
+        async with async_session() as session:
+            # Check if user exists, create if not
+            user_result = await session.execute(
+                text("SELECT id FROM users WHERE x_user_id = :x_user_id"),
+                {"x_user_id": author_id}
             )
+            user_row = user_result.fetchone()
             
-            # Prepare files
-            machine_files = []
-            nginx_conf = self._nginx_config(entry_point)
-            machine_files.append({
-                "guest_path": "/etc/nginx/nginx.conf",
-                "raw_value": self.base64.b64encode(nginx_conf.encode()).decode(),
-            })
+            if user_row:
+                user_id = user_row[0]
+            else:
+                user_id = uuid.uuid4()
+                await session.execute(
+                    text("""
+                        INSERT INTO users (id, x_user_id, x_username, tier, credits, created_at)
+                        VALUES (:id, :x_user_id, :x_username, 'free', 10, NOW())
+                    """),
+                    {"id": user_id, "x_user_id": author_id, "x_username": author_username}
+                )
             
-            for filename, content in files.items():
-                if isinstance(content, bytes):
-                    content = content.decode()
-                machine_files.append({
-                    "guest_path": f"/usr/share/nginx/html/{filename}",
-                    "raw_value": self.base64.b64encode(content.encode()).decode(),
-                })
+            project_id = uuid.uuid4()
+            expires_at = datetime.utcnow() + timedelta(days=7)
             
-            # Delete old machines
-            existing = await client.get(f"{self.api_base}/apps/{app_name}/machines", headers=self.headers)
-            if existing.status_code == 200:
-                for m in existing.json():
-                    await client.delete(
-                        f"{self.api_base}/apps/{app_name}/machines/{m['id']}",
-                        headers=self.headers,
-                        params={"force": "true"},
+            await session.execute(
+                text("""
+                    INSERT INTO projects (
+                        id, user_id, slug, name, original_prompt,
+                        files, deployment_status, is_public, views, forks,
+                        source_tweet_id, created_at, expires_at
+                    ) VALUES (
+                        :id, :user_id, :slug, 'Building...', :prompt,
+                        '{}', 'building', true, 0, 0,
+                        :tweet_id, NOW(), :expires_at
                     )
-            
-            # Create machine
-            response = await client.post(
-                f"{self.api_base}/apps/{app_name}/machines",
-                headers=self.headers,
-                json={
-                    "config": {
-                        "image": "nginx:alpine",
-                        "services": [{"ports": [{"port": 443, "handlers": ["tls", "http"]}], "protocol": "tcp", "internal_port": 8080}],
-                        "files": machine_files,
-                        "guest": {"cpu_kind": "shared", "cpus": 1, "memory_mb": 256},
-                    }
-                },
-                timeout=60.0,
+                """),
+                {
+                    "id": project_id,
+                    "user_id": user_id,
+                    "slug": slug,
+                    "prompt": prompt,
+                    "tweet_id": tweet_id,
+                    "expires_at": expires_at,
+                }
             )
             
-            if response.status_code not in [200, 201]:
-                raise Exception(f"Deployment failed: {response.text}")
+            build_id = uuid.uuid4()
+            await session.execute(
+                text("""
+                    INSERT INTO builds (id, project_id, prompt, status, created_at)
+                    VALUES (:id, :project_id, :prompt, 'queued', NOW())
+                """),
+                {"id": build_id, "project_id": project_id, "prompt": prompt}
+            )
             
-            return {
-                "url": f"https://{app_name}.fly.dev",
-                "deployment_id": response.json()["id"],
-            }
+            await session.commit()
+        
+        return {"build_id": str(build_id), "project_id": str(project_id)}
     
-    def _nginx_config(self, entry_point: str) -> str:
-        return f"""worker_processes auto;
-pid /tmp/nginx.pid;
-events {{ worker_connections 1024; }}
-http {{
-    include /etc/nginx/mime.types;
-    client_body_temp_path /tmp/client_temp;
-    proxy_temp_path /tmp/proxy_temp;
-    fastcgi_temp_path /tmp/fastcgi_temp;
-    uwsgi_temp_path /tmp/uwsgi_temp;
-    scgi_temp_path /tmp/scgi_temp;
-    server {{
-        listen 8080;
-        root /usr/share/nginx/html;
-        index {entry_point};
-        location / {{ try_files $uri $uri/ /{entry_point}; }}
-        gzip on;
-        gzip_types text/plain text/css application/json application/javascript;
-    }}
-}}"""
+    async def update_status(self, slug: str, status: str, error: str = None):
+        """Update build status."""
+        async with async_session() as session:
+            await session.execute(
+                text("UPDATE projects SET deployment_status = :status WHERE slug = :slug"),
+                {"slug": slug, "status": status}
+            )
+            await session.execute(
+                text("""
+                    UPDATE builds 
+                    SET status = :status, error_message = :error
+                    WHERE project_id = (SELECT id FROM projects WHERE slug = :slug)
+                """),
+                {"slug": slug, "status": status, "error": error}
+            )
+            await session.commit()
+    
+    async def complete_build(
+        self,
+        slug: str,
+        name: str,
+        description: str,
+        files: dict,
+        entry_point: str,
+    ):
+        """Complete the build with generated files."""
+        async with async_session() as session:
+            await session.execute(
+                text("""
+                    UPDATE projects 
+                    SET name = :name,
+                        description = :description,
+                        files = :files,
+                        entry_point = :entry_point,
+                        deployment_status = 'deployed'
+                    WHERE slug = :slug
+                """),
+                {
+                    "slug": slug,
+                    "name": name,
+                    "description": description,
+                    "files": json.dumps(files),
+                    "entry_point": entry_point,
+                }
+            )
+            
+            await session.execute(
+                text("""
+                    UPDATE builds 
+                    SET status = 'complete',
+                        generated_files = :files,
+                        completed_at = NOW()
+                    WHERE project_id = (SELECT id FROM projects WHERE slug = :slug)
+                """),
+                {"slug": slug, "files": json.dumps(files)}
+            )
+            
+            await session.commit()
+        
+        return {"url": f"https://buildonx.app/p/{slug}"}
 
 
 class MentionProcessor:
-    """Main worker that processes Twitter mentions."""
+    """Main worker that processes Twitter mentions via polling (Basic tier)."""
     
     def __init__(self):
         self.twitter = TwitterClient()
         self.builder = AIBuilder()
-        self.deployer = Deployer()
-        self.redis = None
+        self.saver = ProjectSaver()
+        self.redis_client = None
+        self.last_mention_id = None
     
     async def run(self):
-        """Main loop."""
-        print("🚀 Starting BuildOnX mention processor...")
+        """Main polling loop."""
+        print(f"🚀 BuildOnX Mention Processor starting...")
+        print(f"📱 Bot: @{self.twitter.bot_username}")
+        print(f"🆔 User ID: {self.twitter.bot_user_id}")
+        print(f"⏱️ Poll interval: {POLL_INTERVAL}s")
         
-        self.redis = await redis.from_url(settings.redis_url)
+        if not self.twitter.bot_user_id:
+            print("❌ FATAL: TWITTER_BOT_USER_ID is not set!")
+            return
+        
+        if not self.twitter.bearer_token:
+            print("❌ FATAL: TWITTER_BEARER_TOKEN is not set!")
+            return
+        
+        self.redis_client = await redis.from_url(settings.redis_url)
+        print("✅ Connected to Redis")
+        
+        # Get last processed ID from Redis
+        last_id = await self.redis_client.get("twitter:last_mention_id")
+        if last_id:
+            self.last_mention_id = last_id.decode()
+            print(f"📌 Resuming from mention ID: {self.last_mention_id}")
+        else:
+            print("📌 Starting fresh (no previous mention ID)")
+        
+        print("=" * 50)
+        print("🎯 Listening for mentions...")
+        print("=" * 50)
         
         while True:
             try:
-                await self.poll_and_process()
+                await self.poll_mentions()
             except Exception as e:
-                print(f"❌ Error in main loop: {e}")
+                print(f"❌ Poll error: {e}")
+                import traceback
+                traceback.print_exc()
             
-            await asyncio.sleep(30)
+            await asyncio.sleep(POLL_INTERVAL)
     
-    async def poll_and_process(self):
-        """Poll for mentions and process them."""
-        # Get last processed tweet ID
-        last_id = await self.redis.get("twitter:last_mention_id")
+    async def poll_mentions(self):
+        """Poll for new mentions."""
+        mentions = await self.twitter.get_mentions(since_id=self.last_mention_id)
         
-        mentions = await self.twitter.poll_mentions(
-            since_id=last_id.decode() if last_id else None
-        )
+        if not mentions:
+            return
         
-        for mention in reversed(mentions):  # Oldest first
+        print(f"📬 Found {len(mentions)} new mention(s)!")
+        
+        # Process oldest first (reverse order)
+        for mention in reversed(mentions):
+            # Skip our own tweets
+            if mention["author_id"] == self.twitter.bot_user_id:
+                print(f"⏭️ Skipping own tweet")
+                continue
+            
             await self.handle_mention(mention)
-            await self.redis.set("twitter:last_mention_id", mention["tweet_id"])
+            
+            # Update last ID after each successful process
+            self.last_mention_id = mention["tweet_id"]
+            await self.redis_client.set("twitter:last_mention_id", self.last_mention_id)
     
     async def handle_mention(self, mention: dict):
         """Process a single mention."""
         tweet_id = mention["tweet_id"]
         
         # Deduplicate
-        if await self.redis.sismember("twitter:processed", tweet_id):
+        if await self.redis_client.sismember("twitter:processed", tweet_id):
             return
-        await self.redis.sadd("twitter:processed", tweet_id)
-        await self.redis.expire("twitter:processed", 86400 * 7)
+        await self.redis_client.sadd("twitter:processed", tweet_id)
+        await self.redis_client.expire("twitter:processed", 86400 * 7)
         
         prompt = mention["prompt"]
         username = mention["author_username"]
@@ -396,16 +558,16 @@ class MentionProcessor:
         
         # Rate limit check
         rate_key = f"ratelimit:{mention['author_id']}:hourly"
-        count = await self.redis.incr(rate_key)
+        count = await self.redis_client.incr(rate_key)
         if count == 1:
-            await self.redis.expire(rate_key, 3600)
+            await self.redis_client.expire(rate_key, 3600)
         
         if count > 3:
             print(f"⏳ Rate limited: @{username}")
-            await self.twitter.reply(tweet_id, f"⏳ @{username} You've hit your limit! Upgrade at BuildOnX.app/pro 🚀")
+            await self.twitter.reply(tweet_id, f"⏳ @{username} You've hit your limit! Upgrade at buildonx.app/pro 🚀")
             return
         
-        # Check content moderation FIRST
+        # Content moderation
         allowed, reason = self.builder.moderator.check_prompt(prompt)
         if not allowed:
             print(f"🚫 Blocked: @{username} - {reason}")
@@ -413,34 +575,61 @@ class MentionProcessor:
             return
         
         # Build the project
+        slug = None
         try:
-            # Notify building
-            await self.twitter.post_building(tweet_id, username)
-            
-            # Generate code
             slug = generate_slug(prompt)
+            build_url = f"https://buildonx.app/build/{slug}"
+            
+            # INSTANTLY reply with build link
+            await self.twitter.post_building(tweet_id, username, build_url)
+            print(f"📤 Replied with build link: {build_url}")
+            
+            # Create build record
+            await self.saver.create_build(
+                slug=slug,
+                prompt=prompt,
+                author_id=mention["author_id"],
+                author_username=username,
+                tweet_id=tweet_id,
+            )
+            
+            await self.saver.update_status(slug, "generating")
+            
+            # Generate code with Claude
             result = await self.builder.generate(prompt)
             
-            # Deploy
-            deployment = await self.deployer.deploy(
-                project_id=slug,
+            await self.saver.update_status(slug, "saving")
+            
+            # Save files to database
+            await self.saver.complete_build(
                 slug=slug,
+                name=result.get("name", "Untitled"),
+                description=result.get("description", prompt[:100]),
                 files=result["files"],
                 entry_point=result.get("entry_point", "index.html"),
             )
             
-            # Post success
-            project_url = deployment["url"]
-            studio_url = f"https://BuildOnX.app/studio/{slug}"
+            # Post final success reply
+            project_url = f"https://buildonx.app/p/{slug}"
+            studio_url = f"https://buildonx.app/studio/{slug}"
             
             await self.twitter.post_complete(
                 tweet_id, username, project_url, studio_url, result.get("name", "Your App")
             )
             
-            print(f"✅ Deployed: {project_url}")
+            print(f"✅ Complete: {project_url}")
             
         except Exception as e:
             print(f"❌ Build failed: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            if slug:
+                try:
+                    await self.saver.update_status(slug, "failed", error=str(e))
+                except:
+                    pass
+            
             await self.twitter.post_failed(tweet_id, username, str(e))
 
 
@@ -451,4 +640,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-

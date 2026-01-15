@@ -70,9 +70,9 @@ class OGImageService:
             opacity = int(255 * 0.03)
             draw.line([(i, 0), (i, self.HEIGHT)], fill=(34, 197, 94, opacity), width=1)
         
-        # Draw BuildOnX logo area
+        # Draw HeyClaude logo area
         draw.rectangle([(40, 40), (56, 56)], fill=self.PRIMARY_COLOR)
-        draw.text((70, 38), "BuildOnX", fill=self.TEXT_COLOR, font=font_small)
+        draw.text((70, 38), "HeyClaude", fill=self.TEXT_COLOR, font=font_small)
         
         # Draw project name
         name_y = 220
@@ -96,7 +96,7 @@ class OGImageService:
         footer_y = self.HEIGHT - 50
         draw.text(
             (self.WIDTH - 250, footer_y),
-            "Built with BuildOnX",
+            "Built with HeyClaude",
             fill=self.PRIMARY_COLOR,
             font=font_small,
         )
@@ -130,7 +130,7 @@ class OGImageService:
   
   <!-- Logo -->
   <rect x="40" y="40" width="16" height="16" fill="{self.PRIMARY_COLOR}"/>
-  <text x="70" y="54" fill="{self.TEXT_COLOR}" font-family="system-ui" font-size="20">BuildOnX</text>
+  <text x="70" y="54" fill="{self.TEXT_COLOR}" font-family="system-ui" font-size="20">HeyClaude</text>
   
   <!-- Project name -->
   <text x="60" y="280" fill="{self.TEXT_COLOR}" font-family="system-ui" font-size="56" font-weight="bold">
@@ -183,4 +183,5 @@ async def generate_project_og_image(
     This is async-ready for use in API routes.
     """
     return og_image.generate_template(project_name, description, author)
+
 

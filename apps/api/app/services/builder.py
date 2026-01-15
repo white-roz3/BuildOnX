@@ -100,7 +100,7 @@ class BuilderService:
     
     def _build_system_prompt(self, template_hint: str) -> str:
         """Build the system prompt based on template type."""
-        base_prompt = """You are BuildOnX, an expert full-stack developer that generates complete, deployable web applications from natural language descriptions.
+        base_prompt = """You are HeyClaude, an expert full-stack developer that generates complete, deployable web applications from natural language descriptions.
 
 Your goal is to create polished, functional applications that work immediately when deployed.
 

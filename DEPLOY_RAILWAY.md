@@ -1,8 +1,8 @@
-# Deploy BuildOnX to Railway
+# Deploy HeyClaude to Railway
 
 ## Architecture Overview
 
-BuildOnX needs **5 services** total:
+HeyClaude needs **5 services** total:
 
 | Service | Type | Purpose |
 |---------|------|---------|
@@ -30,7 +30,7 @@ git push origin main
 1. Go to [railway.app](https://railway.app)
 2. Click **"New Project"**
 3. Select **"Deploy from GitHub repo"**
-4. Connect your GitHub account and select **BuildOnX** repo
+4. Connect your GitHub account and select **HeyClaude** repo
 
 ---
 
@@ -50,21 +50,21 @@ In your Railway project:
 ### 4.1 Add Web Service (Frontend)
 
 1. Click **"+ New"** → **"GitHub Repo"**
-2. Select your BuildOnX repo
+2. Select your HeyClaude repo
 3. Click **"Add Root Directory"** → Enter: `apps/web`
 4. Railway will detect Next.js and deploy
 
 ### 4.2 Add API Service (Backend)
 
 1. Click **"+ New"** → **"GitHub Repo"**
-2. Select your BuildOnX repo
+2. Select your HeyClaude repo
 3. Click **"Add Root Directory"** → Enter: `apps/api`
 4. Railway will detect Python/FastAPI and deploy
 
 ### 4.3 Add Worker Service
 
 1. Click **"+ New"** → **"GitHub Repo"**
-2. Select your BuildOnX repo
+2. Select your HeyClaude repo
 3. Click **"Add Root Directory"** → Enter: `apps/worker`
 
 ---
@@ -79,14 +79,14 @@ Click on each service and add these variables:
 DATABASE_URL=${{Postgres.DATABASE_URL}}
 REDIS_URL=${{Redis.REDIS_URL}}
 SECRET_KEY=your-secret-key-here
-BASE_DOMAIN=BuildOnX.app
+BASE_DOMAIN=heyclaude.app
 TWITTER_API_KEY=your-twitter-key
 TWITTER_API_SECRET=your-twitter-secret
 TWITTER_BEARER_TOKEN=your-bearer-token
 TWITTER_ACCESS_TOKEN=your-access-token
 TWITTER_ACCESS_SECRET=your-access-secret
 TWITTER_BOT_USER_ID=your-bot-user-id
-TWITTER_BOT_USERNAME=BuildAppsOnX
+TWITTER_BOT_USERNAME=HeyClaude
 ANTHROPIC_API_KEY=your-anthropic-key
 ```
 
@@ -103,7 +103,7 @@ NEXT_PUBLIC_API_URL=${{api.RAILWAY_PUBLIC_DOMAIN}}
 1. Click on the **`web`** service
 2. Go to **Settings** → **Networking**
 3. Click **"Generate Domain"**
-4. You'll get a URL like: `buildonx-web-production.up.railway.app`
+4. You'll get a URL like: `heyclaude-web-production.up.railway.app`
 
 This is your **public frontend URL**! 🎉
 
@@ -113,7 +113,7 @@ This is your **public frontend URL**! 🎉
 
 1. In `web` service → **Settings** → **Networking**
 2. Click **"+ Custom Domain"**
-3. Enter: `BuildOnX.app`
+3. Enter: `heyclaude.app`
 4. Add the CNAME record to your DNS provider
 
 ---

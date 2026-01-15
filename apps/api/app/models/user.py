@@ -73,3 +73,4 @@ class User(Base):
         """Check if user has pro tier."""
         return self.tier in ("pro", "enterprise")
 
+

@@ -3,209 +3,114 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Zap, ExternalLink, Edit, Code, GitFork, Eye, Calendar, Loader2 } from "lucide-react";
-
-interface Project {
-  id: string;
-  slug: string;
-  name: string;
-  description: string;
-  files: Record<string, string>;
-  entry_point: string;
-  deployment_url: string;
-  deployment_status: string;
-  original_prompt: string;
-  views: number;
-  forks: number;
-  created_at: string;
-}
+import { fetchProject } from "@/lib/api";
 
 export default function ProjectPage() {
   const params = useParams();
   const slug = params.slug as string;
-
-  const [project, setProject] = useState<Project | null>(null);
+  const [project, setProject] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showCode, setShowCode] = useState(false);
 
   useEffect(() => {
-    async function fetchProject() {
+    async function load() {
       try {
-        const res = await fetch(`/api/projects/${slug}`);
-        if (!res.ok) throw new Error("Project not found");
-        const data = await res.json();
+        const data = await fetchProject(slug);
         setProject(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load project");
+      } catch (err: any) {
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     }
-    fetchProject();
+    if (slug) load();
   }, [slug]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-dark-950 flex items-center justify-center">
-        <div className="flex items-center gap-3 text-primary-500">
-          <Loader2 className="w-5 h-5 animate-spin" />
-          <span className="font-mono">Loading project...</span>
-        </div>
+      <div className="min-h-screen bg-claude-bg flex items-center justify-center">
+        <div className="text-claude-text-secondary">Loading...</div>
       </div>
     );
   }
 
   if (error || !project) {
     return (
-      <div className="min-h-screen bg-dark-950 flex flex-col items-center justify-center gap-4">
-        <p className="text-red-500">{error || "Project not found"}</p>
-        <Link href="/" className="text-primary-500 hover:underline">
-          ← Back to home
-        </Link>
+      <div className="min-h-screen bg-claude-bg flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-semibold text-claude-text mb-4">Project not found</h1>
+          <Link href="/" className="text-claude-orange hover:text-claude-orange-light transition-colors">
+            Go home
+          </Link>
+        </div>
       </div>
     );
   }
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
+  const htmlContent = project.files?.[project.entry_point || "index.html"] || "";
 
   return (
-    <div className="min-h-screen bg-dark-950">
+    <div className="min-h-screen bg-claude-bg flex flex-col">
       {/* Header */}
-      <header className="border-b border-dark-800 px-6 py-4">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
+      <header className="w-full px-6 py-4 border-b border-claude-border">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
-              <Zap className="w-5 h-5 text-dark-950" />
-            </div>
-            <span className="font-bold text-lg">BuildOnX</span>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-claude-orange">
+              <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="currentColor"/>
+            </svg>
+            <span className="text-claude-text font-semibold text-lg">HeyClaude</span>
           </Link>
-
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <Link
               href={`/studio/${slug}`}
-              className="flex items-center gap-2 px-4 py-2 border border-dark-700 hover:border-dark-500 transition"
+              className="px-4 py-2 bg-claude-orange text-claude-bg font-medium rounded-lg hover:bg-claude-orange-light transition-colors text-sm"
             >
-              <Edit className="w-4 h-4" />
               Edit in Studio
             </Link>
-            <a
-              href={project.deployment_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 bg-primary-500 text-dark-950 px-4 py-2 font-medium hover:bg-primary-400 transition"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Open App
-            </a>
+            {project.deployment_url && (
+              <a
+                href={project.deployment_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-claude-surface-elevated text-claude-text font-medium rounded-lg hover:bg-claude-border transition-colors text-sm border border-claude-border"
+              >
+                Open App ↗
+              </a>
+            )}
           </div>
         </div>
       </header>
 
       {/* Project Info */}
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-3">{project.name}</h1>
-          <p className="text-xl text-dark-400 mb-4">{project.description}</p>
-          
-          <div className="flex flex-wrap items-center gap-6 text-sm text-dark-500">
-            <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4" />
-              {project.views} views
-            </div>
-            <div className="flex items-center gap-2">
-              <GitFork className="w-4 h-4" />
-              {project.forks} forks
-            </div>
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              {formatDate(project.created_at)}
-            </div>
-          </div>
-        </div>
-
-        {/* Original Prompt */}
-        <div className="mb-8 p-4 bg-dark-900 border border-dark-800 rounded-lg">
-          <p className="text-sm text-dark-500 mb-2">Built from tweet:</p>
-          <p className="text-dark-200 font-mono">
-            @BuildAppsOnX {project.original_prompt}
-          </p>
-        </div>
-
-        {/* Preview + Code Toggle */}
-        <div className="flex gap-4 mb-4">
-          <button
-            onClick={() => setShowCode(false)}
-            className={`px-4 py-2 text-sm font-medium transition ${
-              !showCode
-                ? "bg-primary-500 text-dark-950"
-                : "text-dark-400 hover:text-white"
-            }`}
-          >
-            Preview
-          </button>
-          <button
-            onClick={() => setShowCode(true)}
-            className={`px-4 py-2 text-sm font-medium transition flex items-center gap-2 ${
-              showCode
-                ? "bg-primary-500 text-dark-950"
-                : "text-dark-400 hover:text-white"
-            }`}
-          >
-            <Code className="w-4 h-4" />
-            View Code
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="border border-dark-800 rounded-lg overflow-hidden">
-          {showCode ? (
-            <div className="max-h-[600px] overflow-auto">
-              {Object.entries(project.files).map(([filename, content]) => (
-                <div key={filename} className="border-b border-dark-800 last:border-b-0">
-                  <div className="bg-dark-900 px-4 py-2 border-b border-dark-800 sticky top-0">
-                    <span className="font-mono text-sm text-dark-300">{filename}</span>
-                  </div>
-                  <pre className="p-4 text-sm overflow-x-auto">
-                    <code className="text-dark-300">{content}</code>
-                  </pre>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white">
-              <iframe
-                src={project.deployment_url}
-                className="w-full h-[600px] border-0"
-                title={project.name}
-              />
-            </div>
+      <div className="w-full px-6 py-6 border-b border-claude-border bg-claude-surface">
+        <div className="max-w-6xl mx-auto">
+          <h1 className="text-2xl font-semibold text-claude-text mb-1">{project.name || "Untitled"}</h1>
+          {project.description && (
+            <p className="text-claude-text-secondary">{project.description}</p>
           )}
         </div>
-
-        {/* Actions */}
-        <div className="mt-8 flex gap-4">
-          <button className="flex items-center gap-2 px-6 py-3 border border-dark-700 hover:border-primary-500 transition">
-            <GitFork className="w-4 h-4" />
-            Fork Project
-          </button>
-          <Link
-            href={`/studio/${slug}`}
-            className="flex items-center gap-2 px-6 py-3 bg-primary-500 text-dark-950 font-medium hover:bg-primary-400 transition"
-          >
-            <Edit className="w-4 h-4" />
-            Remix in Studio
-          </Link>
-        </div>
       </div>
+
+      {/* Preview */}
+      <main className="flex-1 bg-white">
+        {htmlContent ? (
+          <iframe
+            srcDoc={htmlContent}
+            className="w-full h-full min-h-[calc(100vh-200px)] border-0"
+            title="Project Preview"
+          />
+        ) : project.deployment_url ? (
+          <iframe
+            src={project.deployment_url}
+            className="w-full h-full min-h-[calc(100vh-200px)] border-0"
+            title="Project Preview"
+          />
+        ) : (
+          <div className="flex items-center justify-center h-full min-h-[calc(100vh-200px)] text-claude-text-tertiary">
+            No preview available
+          </div>
+        )}
+      </main>
     </div>
   );
 }
-

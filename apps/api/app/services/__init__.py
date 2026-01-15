@@ -1,5 +1,5 @@
 """
-Service layer for BuildOnX.
+Service layer for HeyClaude.
 """
 
 from app.services.twitter import TwitterService

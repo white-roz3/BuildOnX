@@ -42,3 +42,4 @@ Templates use these placeholders that get replaced during generation:
 
 These templates are used as base structures when the AI generates projects. The AI will customize and expand upon these templates based on the user's specific requirements.
 
+
