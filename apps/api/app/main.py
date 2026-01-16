@@ -100,7 +100,15 @@ async def root():
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy"}
+    import os
+    api_key = settings.anthropic_api_key
+    env_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    return {
+        "status": "healthy",
+        "api_key_from_settings": len(api_key) if api_key else 0,
+        "api_key_from_env": len(env_key) if env_key else 0,
+        "api_key_starts_with": api_key[:20] if api_key and len(api_key) > 20 else "empty",
+    }
 
 
 # ─────────────────────────────────────────────────────────────
