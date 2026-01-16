@@ -404,8 +404,8 @@ class ProjectSaver:
             build_id = uuid.uuid4()
             await session.execute(
                 text("""
-                    INSERT INTO builds (id, project_id, prompt, status, created_at)
-                    VALUES (:id, :project_id, :prompt, 'queued', NOW())
+                    INSERT INTO builds (id, project_id, prompt, prompt_type, status, created_at)
+                    VALUES (:id, :project_id, :prompt, 'initial', 'queued', NOW())
                 """),
                 {"id": build_id, "project_id": project_id, "prompt": prompt}
             )
