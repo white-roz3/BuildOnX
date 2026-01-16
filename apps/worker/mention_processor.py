@@ -225,33 +225,29 @@ class TwitterClient:
                 print(f"❌ [REPLY] Failed ({response.status_code}): {result}")
                 return {"error": result}
     
-    async def post_building(self, tweet_id: str, username: str, build_url: str):
-        """Post that build is starting with link."""
+    async def post_building(self, tweet_id: str, username: str, studio_url: str):
+        """Post that build is starting with studio link."""
         return await self.reply(
             tweet_id,
-            f"🔨 Building your app, @{username}!\n\n"
-            f"Watch it happen live:\n{build_url}\n\n"
-            f"⏱️ Usually takes 30-60 seconds"
+            f"🔨 On it, @{username}!\n\n"
+            f"{studio_url}\n\n"
+            f"⏱️ ~30 seconds"
         )
     
-    async def post_complete(self, tweet_id: str, username: str, project_url: str, studio_url: str, name: str):
-        """Post build completion."""
+    async def post_complete(self, tweet_id: str, username: str, studio_url: str, name: str):
+        """Post build completion with studio link only."""
         return await self.reply(
             tweet_id,
-            f"✅ Done! Your app \"{name}\" is live:\n\n"
-            f"🌐 {project_url}\n"
-            f"🛠️ Edit: {studio_url}\n\n"
-            f"Reply to this tweet to refine your project!"
+            f"✅ Done! \"{name}\"\n\n"
+            f"{studio_url}\n\n"
+            f"Reply to refine it!"
         )
     
     async def post_failed(self, tweet_id: str, username: str, error: str):
         """Post build failure."""
-        error_short = error[:80] + "..." if len(error) > 80 else error
         return await self.reply(
             tweet_id,
-            f"❌ Build failed, @{username}\n\n"
-            f"Error: {error_short}\n\n"
-            f"Try simplifying your request!"
+            f"❌ Failed @{username} - try again with a simpler request!"
         )
 
 
@@ -616,12 +612,11 @@ class MentionProcessor:
                 entry_point=result.get("entry_point", "index.html"),
             )
             
-            # Post final success reply
-            project_url = f"https://heyclaude.xyz/p/{slug}"
+            # Post final success reply with studio link only
             studio_url = f"https://heyclaude.xyz/studio/{slug}"
             
             await self.twitter.post_complete(
-                tweet_id, username, project_url, studio_url, result.get("name", "Your App")
+                tweet_id, username, studio_url, result.get("name", "Your App")
             )
             
             print(f"✅ Complete: {project_url}")

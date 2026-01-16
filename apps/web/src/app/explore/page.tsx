@@ -124,14 +124,11 @@ export default function ExplorePage() {
 
       {/* Footer */}
       <footer className="px-6 py-4 border-t border-border-subtle">
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center justify-center text-sm">
           <div className="flex items-center gap-2 text-text-muted">
             <span>Built with</span>
             <span className="text-accent">✳</span>
             <span className="text-text-secondary">Claude</span>
-          </div>
-          <div className="font-mono text-xs text-text-muted">
-            CA: FeuQgovgEifmohmohDj2PdMV4NLAhqzdCytubsys3vVpump
           </div>
         </div>
       </footer>
