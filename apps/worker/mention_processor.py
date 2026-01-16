@@ -545,49 +545,25 @@ class MentionProcessor:
             await self.redis_client.set("twitter:last_mention_id", self.last_mention_id)
     
     async def handle_mention(self, mention: dict):
-        """Process a single mention."""
+        """Process a single mention - SIMPLE: receive prompt, reply with studio link."""
         tweet_id = mention["tweet_id"]
         
-        # Deduplicate
+        # Skip if already processed
         if await self.redis_client.sismember("twitter:processed", tweet_id):
             return
         await self.redis_client.sadd("twitter:processed", tweet_id)
-        await self.redis_client.expire("twitter:processed", 86400 * 7)
         
         prompt = mention["prompt"]
         username = mention["author_username"]
         
-        print(f"📥 Processing: @{username}: {prompt[:50]}...")
+        print(f"📥 @{username}: {prompt[:50]}...")
         
-        # Rate limit check
-        rate_key = f"ratelimit:{mention['author_id']}:hourly"
-        count = await self.redis_client.incr(rate_key)
-        if count == 1:
-            await self.redis_client.expire(rate_key, 3600)
-        
-        if count > 3:
-            print(f"⏳ Rate limited: @{username}")
-            await self.twitter.reply(tweet_id, f"⏳ @{username} You've hit your limit! Upgrade at heyclaude.xyz/pro 🚀")
-            return
-        
-        # Content moderation
-        allowed, reason = self.builder.moderator.check_prompt(prompt)
-        if not allowed:
-            print(f"🚫 Blocked: @{username} - {reason}")
-            await self.twitter.reply(tweet_id, f"❌ @{username} {reason}")
-            return
-        
-        # Build the project
-        slug = None
         try:
+            # Generate slug and studio URL
             slug = generate_slug(prompt)
-            build_url = f"https://heyclaude.xyz/studio/{slug}"
+            studio_url = f"https://heyclaude.xyz/studio/{slug}"
             
-            # INSTANTLY reply with build link
-            await self.twitter.post_building(tweet_id, username, build_url)
-            print(f"📤 Replied with build link: {build_url}")
-            
-            # Create build record
+            # 1. Create project in DB first
             await self.saver.create_build(
                 slug=slug,
                 prompt=prompt,
@@ -596,43 +572,26 @@ class MentionProcessor:
                 tweet_id=tweet_id,
             )
             
-            await self.saver.update_status(slug, "generating")
+            # 2. IMMEDIATELY reply with studio link
+            await self.twitter.reply(tweet_id, f"@{username} {studio_url}")
+            print(f"📤 Replied: {studio_url}")
             
-            # Generate code with Claude
+            # 3. Build in background
             result = await self.builder.generate(prompt)
             
-            await self.saver.update_status(slug, "saving")
-            
-            # Save files to database
+            # 4. Save completed build
             await self.saver.complete_build(
                 slug=slug,
                 name=result.get("name", "Untitled"),
-                description=result.get("description", prompt[:100]),
+                description=result.get("description", ""),
                 files=result["files"],
                 entry_point=result.get("entry_point", "index.html"),
             )
             
-            # Post final success reply with studio link only
-            studio_url = f"https://heyclaude.xyz/studio/{slug}"
-            
-            await self.twitter.post_complete(
-                tweet_id, username, studio_url, result.get("name", "Your App")
-            )
-            
-            print(f"✅ Complete: {project_url}")
+            print(f"✅ Built: {slug}")
             
         except Exception as e:
-            print(f"❌ Build failed: {e}")
-            import traceback
-            traceback.print_exc()
-            
-            if slug:
-                try:
-                    await self.saver.update_status(slug, "failed", error=str(e))
-                except:
-                    pass
-            
-            await self.twitter.post_failed(tweet_id, username, str(e))
+            print(f"❌ Error: {e}")
 
 
 async def main():
