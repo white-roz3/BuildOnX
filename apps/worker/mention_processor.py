@@ -383,12 +383,12 @@ class ProjectSaver:
                 text("""
                     INSERT INTO projects (
                         id, user_id, slug, name, original_prompt,
-                        template, files, deployment_status, is_public, views, forks,
-                        source_tweet_id, created_at, expires_at
+                        template, tech_stack, files, entry_point, deployment_status, 
+                        is_public, views, forks, source_tweet_id, created_at, expires_at
                     ) VALUES (
                         :id, :user_id, :slug, 'Building...', :prompt,
-                        'static-site', '{}', 'building', true, 0, 0,
-                        :tweet_id, NOW(), :expires_at
+                        'static-site', '{}', '{}', 'index.html', 'building', 
+                        true, 0, 0, :tweet_id, NOW(), :expires_at
                     )
                 """),
                 {
