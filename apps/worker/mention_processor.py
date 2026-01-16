@@ -158,8 +158,15 @@ class TwitterClient:
         if since_id:
             params["since_id"] = since_id
         
+        # Use OAuth 1.0a for mentions endpoint
+        auth_header = self._oauth_header("GET", url, params)
+        headers = {
+            "Authorization": auth_header,
+            "Content-Type": "application/json",
+        }
+        
         async with httpx.AsyncClient() as client:
-            response = await client.get(url, headers=self.headers, params=params)
+            response = await client.get(url, headers=headers, params=params)
             
             if response.status_code == 429:
                 retry_after = response.headers.get("x-rate-limit-reset", "unknown")
