@@ -1,117 +1,222 @@
-"use client";
+'use client';
 
-import Link from "next/link";
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createProject } from '@/lib/api';
+import Link from 'next/link';
+import Image from 'next/image';
+import { 
+  Twitter, ImageIcon, Link2, MoreHorizontal, ChevronDown, AlertTriangle
+} from 'lucide-react';
 
-export default function Home() {
+const SUGGESTIONS = [
+  'Portfolio site',
+  'Dashboard with charts',
+  'Landing page',
+  'Todo app',
+];
+
+export default function HomePage() {
+  const router = useRouter();
+  const [prompt, setPrompt] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (text?: string) => {
+    const submitPrompt = text || prompt;
+    if (!submitPrompt.trim()) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await createProject(submitPrompt);
+      router.push(`/studio/${result.slug}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create project');
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-claude-bg flex flex-col">
+    <div className="min-h-screen bg-bg-main flex flex-col">
       {/* Header */}
-      <header className="w-full px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-claude-orange">
-              <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="currentColor"/>
-            </svg>
-            <span className="text-claude-text font-semibold text-lg">HeyClaude</span>
-          </div>
-          <nav className="flex items-center gap-6">
-            <Link href="/explore" className="text-claude-text-secondary hover:text-claude-text transition-colors text-sm">
-              Explore
-            </Link>
-            <Link href="/admin" className="text-claude-text-secondary hover:text-claude-text transition-colors text-sm">
-              Admin
-            </Link>
-          </nav>
+      <header className="flex items-center justify-between px-6 py-4">
+        <Link href="/" className="flex items-center gap-2">
+          <Image
+            src="/claude-symbol.svg"
+            alt="HeyClaude"
+            width={28}
+            height={28}
+            className="w-7 h-7"
+          />
+          <Image
+            src="/heyclaude-text.png"
+            alt="HEYCLAUDE"
+            width={140}
+            height={24}
+            className="h-6 w-auto"
+          />
+          <span className="text-xl">👋</span>
+        </Link>
+        
+        <div className="flex items-center gap-4">
+          <Link 
+            href="/explore" 
+            className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+          >
+            Explore
+          </Link>
+          <a
+            href="https://twitter.com/buildheyclaude"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-text-secondary hover:text-text-primary transition-colors"
+          >
+            <Twitter className="w-5 h-5" />
+          </a>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 -mt-20">
-        {/* Pixel Art Icon */}
-        <div className="mb-8 animate-fade-in">
-          <svg width="80" height="64" viewBox="0 0 80 64" fill="none" className="text-claude-orange">
-            {/* Pixel art creature similar to Claude's */}
-            <rect x="24" y="8" width="8" height="8" fill="currentColor"/>
-            <rect x="48" y="8" width="8" height="8" fill="currentColor"/>
-            <rect x="16" y="16" width="48" height="8" fill="currentColor"/>
-            <rect x="8" y="24" width="64" height="8" fill="currentColor"/>
-            <rect x="8" y="32" width="64" height="8" fill="currentColor"/>
-            <rect x="16" y="40" width="16" height="8" fill="currentColor"/>
-            <rect x="48" y="40" width="16" height="8" fill="currentColor"/>
-            <rect x="24" y="24" width="8" height="8" fill="#0d0d0d"/>
-            <rect x="48" y="24" width="8" height="8" fill="#0d0d0d"/>
-          </svg>
-        </div>
+      <main className="flex-1 flex flex-col items-center justify-center px-6 pb-8">
+        <div className="w-full max-w-xl flex flex-col items-center">
+          {/* Mascot */}
+          <div className="mb-8 flex items-center justify-center gap-3">
+            <Image
+              src="/claude-symbol.svg"
+              alt="Claude"
+              width={80}
+              height={80}
+              className="w-20 h-20"
+            />
+            <span className="text-6xl">👋</span>
+          </div>
 
-        {/* Hero Text */}
-        <h1 className="text-5xl md:text-7xl font-semibold text-claude-text mb-6 animate-slide-up font-display tracking-tight">
-          HeyClaude
-        </h1>
-        
-        <p className="text-xl md:text-2xl text-claude-text-secondary text-center max-w-xl mb-12 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-          Build apps with a tweet. Just @ us.
-        </p>
+          {/* Dropdown Buttons */}
+          <div className="flex items-center gap-3 mb-6">
+            <button className="flex items-center gap-2 px-4 py-2 text-sm text-text-secondary 
+                             bg-bg-card border border-border rounded-lg hover:border-accent 
+                             hover:text-text-primary transition-colors">
+              Recent Projects
+              <ChevronDown className="w-4 h-4" />
+            </button>
+            <button className="flex items-center gap-2 px-4 py-2 text-sm text-text-secondary 
+                             bg-bg-card border border-border rounded-lg hover:border-accent 
+                             hover:text-text-primary transition-colors">
+              New Build
+              <ChevronDown className="w-4 h-4" />
+            </button>
+          </div>
 
-        {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-          <a
-            href="https://x.com/buildheyclaude"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-6 py-3 bg-claude-orange text-claude-bg font-medium rounded-lg hover:bg-claude-orange-light transition-colors text-center"
-          >
-            Try on Twitter
-          </a>
-          <Link
-            href="/explore"
-            className="px-6 py-3 bg-claude-surface-elevated text-claude-text font-medium rounded-lg hover:bg-claude-border transition-colors text-center border border-claude-border"
-          >
-            Explore Projects
-          </Link>
+          {/* Input Box */}
+          <div className="w-full mb-4">
+            <div className="bg-bg-card border border-border rounded-xl overflow-hidden 
+                          focus-within:border-accent transition-colors">
+              <textarea 
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={isLoading}
+                rows={3}
+                className="w-full bg-transparent text-text-primary placeholder-text-muted 
+                         p-4 resize-none focus:outline-none text-base"
+                placeholder="Describe the app you want to build..."
+              />
+              
+              <div className="flex items-center justify-between px-4 py-3 border-t border-border-subtle">
+                <div className="flex items-center gap-2">
+                  <button className="p-2 text-text-muted hover:text-text-secondary hover:bg-bg-hover 
+                                   rounded-lg transition-colors">
+                    <ImageIcon className="w-5 h-5" />
+                  </button>
+                  <button className="p-2 text-text-muted hover:text-text-secondary hover:bg-bg-hover 
+                                   rounded-lg transition-colors">
+                    <Link2 className="w-5 h-5" />
+                  </button>
+                  <button className="p-2 text-text-muted hover:text-text-secondary hover:bg-bg-hover 
+                                   rounded-lg transition-colors">
+                    <MoreHorizontal className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                <button 
+                  onClick={() => handleSubmit()}
+                  disabled={!prompt.trim() || isLoading}
+                  className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white 
+                           bg-accent hover:bg-accent-hover rounded-lg transition-colors
+                           disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent 
+                                     rounded-full animate-spin" />
+                      Building...
+                    </>
+                  ) : (
+                    <>
+                      Ask
+                      <span className="text-base">✳</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="w-full mb-4 px-4 py-3 bg-red-500/10 border border-red-500/30 
+                          rounded-lg text-sm text-red-400">
+              {error}
+            </div>
+          )}
+
+          {/* Suggestion Chips */}
+          <div className="flex items-center gap-2 flex-wrap justify-center mb-8">
+            {SUGGESTIONS.map((chip) => (
+              <button 
+                key={chip}
+                onClick={() => handleSubmit(chip)}
+                disabled={isLoading}
+                className="px-4 py-2 text-sm text-text-secondary bg-bg-card border border-border 
+                         rounded-lg hover:border-accent hover:text-text-primary transition-colors
+                         disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+
+          {/* Warning Banner */}
+          <div className="w-full max-w-lg flex items-start gap-3 px-4 py-3 rounded-lg 
+                        bg-[rgba(234,88,12,0.1)] border border-accent text-sm">
+            <AlertTriangle className="w-5 h-5 text-accent-light flex-shrink-0 mt-0.5" />
+            <span className="text-accent-light">
+              HeyClaude generates and deploys code publicly. Be mindful of what you build.
+            </span>
+          </div>
         </div>
       </main>
 
-      {/* Features Section */}
-      <section className="w-full px-6 py-20 border-t border-claude-border">
-        <div className="max-w-4xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center bg-claude-surface-elevated rounded-lg">
-                <span className="text-2xl">🚀</span>
-              </div>
-              <h3 className="text-lg font-medium text-claude-text mb-2">Instant</h3>
-              <p className="text-claude-text-secondary text-sm">
-                Get your app deployed in 30-60 seconds. No setup required.
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center bg-claude-surface-elevated rounded-lg">
-                <span className="text-2xl">🤖</span>
-              </div>
-              <h3 className="text-lg font-medium text-claude-text mb-2">AI-Powered</h3>
-              <p className="text-claude-text-secondary text-sm">
-                Powered by Claude AI for production-ready applications.
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center bg-claude-surface-elevated rounded-lg">
-                <span className="text-2xl">✏️</span>
-              </div>
-              <h3 className="text-lg font-medium text-claude-text mb-2">Editable</h3>
-              <p className="text-claude-text-secondary text-sm">
-                Refine and customize through our web-based studio.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Footer */}
-      <footer className="w-full px-6 py-6 border-t border-claude-border">
-        <div className="max-w-6xl mx-auto text-center">
-          <p className="text-claude-text-tertiary text-xs">
-            © 2026 HeyClaude · CA: FeuQgovgEifmohDj2PdMV4NLAhqzdCytubsys3vVpump
-          </p>
+      <footer className="px-6 py-4 border-t border-border-subtle">
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2 text-text-muted">
+            <span>Built with</span>
+            <span className="text-accent">✳</span>
+            <span className="text-text-secondary">HeyClaude</span>
+          </div>
+          <div className="font-mono text-xs text-text-muted">
+            CA: FeuQgovgEifmohmohDj2PdMV4NLAhqzdCytubsys3vVpump
+          </div>
         </div>
       </footer>
     </div>

@@ -1,164 +1,269 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { API_URL } from '@/lib/api';
+import { 
+  RefreshCw, ExternalLink, Play, Activity, Clock, CheckCircle, AlertCircle, Twitter
+} from 'lucide-react';
 
-const API_URL = typeof window !== "undefined" && window.location.hostname !== "localhost"
-  ? "https://heyclaude-api-production.up.railway.app"
-  : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
+interface Mention {
+  tweet_id: string;
+  author_username: string;
+  text: string;
+  status: string;
+  deployment_url?: string;
+}
+
+interface Stats {
+  total_mentions: number;
+  pending: number;
+  processing: number;
+  replied: number;
+  rate_limit_remaining: number;
+}
 
 export default function AdminPage() {
-  const [mentions, setMentions] = useState<any[]>([]);
-  const [queue, setQueue] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
+  const [mentions, setMentions] = useState<Mention[]>([]);
+  const [queue, setQueue] = useState<Mention[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  const loadData = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/mentions`);
+      const data = await res.json();
+      setMentions(data.mentions || []);
+      setQueue(data.queue || []);
+      setStats(data.stats || null);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error('Failed to load admin data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch(`${API_URL}/api/admin/mentions`);
-        const data = await res.json();
-        setMentions(data.mentions || []);
-        setQueue(data.queue || []);
-        setStats(data.stats || {});
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-    const interval = setInterval(load, 30000);
+    loadData();
+    const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
   }, []);
 
   const handleDeploy = async (tweetId: string) => {
     try {
-      await fetch(`${API_URL}/api/admin/deploy/${tweetId}`, { method: "POST" });
-      setTimeout(() => window.location.reload(), 1000);
+      await fetch(`${API_URL}/api/admin/deploy/${tweetId}`, { method: 'POST' });
+      setTimeout(loadData, 1000);
     } catch (err) {
-      console.error(err);
+      console.error('Deploy failed:', err);
     }
   };
 
   return (
-    <div className="min-h-screen bg-claude-bg">
+    <div className="min-h-screen bg-bg-main flex flex-col">
       {/* Header */}
-      <header className="w-full px-6 py-4 border-b border-claude-border">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-claude-orange">
-              <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="currentColor"/>
-            </svg>
-            <span className="text-claude-text font-semibold text-lg">HeyClaude</span>
-          </Link>
-          <nav className="flex items-center gap-6">
-            <Link href="/explore" className="text-claude-text-secondary hover:text-claude-text transition-colors text-sm">
-              Explore
-            </Link>
-            <Link href="/admin" className="text-claude-text text-sm font-medium">
-              Admin
-            </Link>
-          </nav>
+      <header className="flex items-center justify-between px-6 py-4 border-b border-border-subtle">
+        <Link href="/" className="flex items-center gap-2">
+          <Image
+            src="/claude-symbol.svg"
+            alt="HeyClaude"
+            width={28}
+            height={28}
+            className="w-7 h-7"
+          />
+          <Image
+            src="/heyclaude-text.png"
+            alt="HEYCLAUDE"
+            width={140}
+            height={24}
+            className="h-6 w-auto"
+          />
+          <span className="text-xl">👋</span>
+          <span className="text-text-muted">/</span>
+          <span className="text-text-secondary">Admin</span>
+        </Link>
+        
+        <div className="flex items-center gap-4">
+          <button
+            onClick={loadData}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-text-primary
+                     bg-bg-card border border-border rounded-lg hover:border-accent 
+                     transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <a
+            href="https://twitter.com/buildheyclaude"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-text-secondary hover:text-text-primary transition-colors"
+          >
+            <Twitter className="w-5 h-5" />
+          </a>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-6 py-8">
-        <h1 className="text-3xl font-semibold text-claude-text mb-8">Admin Dashboard</h1>
+      <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-display font-bold text-text-primary mb-1">Admin Dashboard</h1>
+          {lastUpdated && (
+            <p className="text-text-muted text-sm">Last updated: {lastUpdated.toLocaleTimeString()}</p>
+          )}
+        </div>
 
-        {/* Stats */}
+        {/* Stats Cards */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-claude-surface p-4 rounded-lg border border-claude-border">
-              <div className="text-sm text-claude-text-secondary mb-1">Total Mentions</div>
-              <div className="text-2xl font-semibold text-claude-text">{stats.total_mentions || 0}</div>
-            </div>
-            <div className="bg-claude-surface p-4 rounded-lg border border-claude-border">
-              <div className="text-sm text-claude-text-secondary mb-1">Pending</div>
-              <div className="text-2xl font-semibold text-claude-orange">{stats.pending || 0}</div>
-            </div>
-            <div className="bg-claude-surface p-4 rounded-lg border border-claude-border">
-              <div className="text-sm text-claude-text-secondary mb-1">Processing</div>
-              <div className="text-2xl font-semibold text-yellow-500">{stats.processing || 0}</div>
-            </div>
-            <div className="bg-claude-surface p-4 rounded-lg border border-claude-border">
-              <div className="text-sm text-claude-text-secondary mb-1">Rate Limit</div>
-              <div className="text-2xl font-semibold text-claude-text">{stats.rate_limit_remaining || 0}</div>
-            </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+            <StatCard label="Total Mentions" value={stats.total_mentions} icon={<Activity className="w-5 h-5" />} />
+            <StatCard label="Pending" value={stats.pending} icon={<Clock className="w-5 h-5" />} variant="warning" />
+            <StatCard label="Processing" value={stats.processing} icon={<RefreshCw className="w-5 h-5" />} />
+            <StatCard label="Replied" value={stats.replied} icon={<CheckCircle className="w-5 h-5" />} variant="success" />
+            <StatCard label="Rate Limit" value={stats.rate_limit_remaining} icon={<AlertCircle className="w-5 h-5" />} />
           </div>
         )}
 
+        {/* Two Column Layout */}
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Mentions */}
           <div>
-            <h2 className="text-xl font-semibold text-claude-text mb-4">Mentions</h2>
-            <div className="space-y-3">
+            <h2 className="text-lg font-display font-semibold text-text-primary mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-status-live" />
+              Mentions
+            </h2>
+            
+            <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
               {loading ? (
-                <div className="text-claude-text-secondary">Loading...</div>
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                </div>
               ) : mentions.length === 0 ? (
-                <div className="text-claude-text-tertiary py-8 text-center">No mentions</div>
+                <div className="py-12 text-center">
+                  <p className="text-text-muted">No mentions yet</p>
+                </div>
               ) : (
-                mentions.map((mention) => (
-                  <div key={mention.tweet_id} className="bg-claude-surface p-4 rounded-lg border border-claude-border">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1 min-w-0 mr-3">
-                        <div className="font-medium text-claude-orange text-sm">@{mention.author_username}</div>
-                        <div className="text-sm text-claude-text-secondary mt-1 break-words">{mention.text}</div>
-                      </div>
-                      <span className={`px-2 py-1 rounded text-xs shrink-0 ${
-                        mention.status === "replied" ? "bg-green-900/30 text-green-400 border border-green-800" :
-                        mention.status === "processing" ? "bg-yellow-900/30 text-yellow-400 border border-yellow-800" :
-                        mention.status === "failed" ? "bg-red-900/30 text-red-400 border border-red-800" :
-                        "bg-claude-surface-elevated text-claude-text-secondary border border-claude-border"
-                      }`}>
-                        {mention.status}
-                      </span>
-                    </div>
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={() => handleDeploy(mention.tweet_id)}
-                        className="px-3 py-1.5 bg-claude-orange text-claude-bg rounded text-sm font-medium hover:bg-claude-orange-light transition-colors"
-                      >
-                        Deploy
-                      </button>
-                      {mention.deployment_url && (
-                        <a
-                          href={mention.deployment_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3 py-1.5 bg-claude-surface-elevated text-claude-text-secondary rounded text-sm hover:bg-claude-border transition-colors border border-claude-border"
-                        >
-                          View ↗
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ))
+                <div className="divide-y divide-border-subtle">
+                  {mentions.map((mention) => (
+                    <MentionCard key={mention.tweet_id} mention={mention} onDeploy={handleDeploy} />
+                  ))}
+                </div>
               )}
             </div>
           </div>
 
           {/* Queue */}
           <div>
-            <h2 className="text-xl font-semibold text-claude-text mb-4">Queue</h2>
-            <div className="space-y-3">
+            <h2 className="text-lg font-display font-semibold text-text-primary mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+              Processing Queue
+            </h2>
+            
+            <div className="bg-bg-card border border-border rounded-xl overflow-hidden">
               {queue.length === 0 ? (
-                <div className="text-claude-text-tertiary py-8 text-center bg-claude-surface rounded-lg border border-claude-border">
-                  Queue is empty
+                <div className="py-12 text-center">
+                  <p className="text-text-muted">Queue is empty</p>
                 </div>
               ) : (
-                queue.map((item) => (
-                  <div key={item.tweet_id} className="bg-claude-surface p-4 rounded-lg border border-claude-border">
-                    <div className="font-medium text-claude-text text-sm">Tweet {item.tweet_id}</div>
-                    <div className="text-sm text-claude-text-secondary mt-1">Status: {item.status}</div>
-                  </div>
-                ))
+                <div className="divide-y divide-border-subtle">
+                  {queue.map((item) => (
+                    <div key={item.tweet_id} className="p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-mono text-text-secondary">{item.tweet_id.slice(0, 12)}...</span>
+                        <span className="bg-accent/20 text-accent text-xs font-semibold px-2 py-0.5 rounded">
+                          {item.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>
         </div>
       </main>
+
+      {/* Footer */}
+      <footer className="px-6 py-4 border-t border-border-subtle">
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2 text-text-muted">
+            <span>Built with</span>
+            <span className="text-accent">✳</span>
+            <span className="text-text-secondary">HeyClaude</span>
+          </div>
+          <div className="font-mono text-xs text-text-muted">
+            CA: FeuQgovgEifmohmohDj2PdMV4NLAhqzdCytubsys3vVpump
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+function StatCard({ label, value, icon, variant }: { 
+  label: string; value: number; icon: React.ReactNode; variant?: 'success' | 'warning' | 'error';
+}) {
+  const colors = {
+    success: 'text-status-live',
+    warning: 'text-accent',
+    error: 'text-status-error',
+  };
+
+  return (
+    <div className="bg-bg-card border border-border rounded-xl p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <span className={variant ? colors[variant] : 'text-text-muted'}>{icon}</span>
+        <span className="text-sm text-text-muted">{label}</span>
+      </div>
+      <div className={`text-2xl font-bold ${variant ? colors[variant] : 'text-text-primary'}`}>{value}</div>
+    </div>
+  );
+}
+
+function MentionCard({ mention, onDeploy }: { mention: Mention; onDeploy: (id: string) => void }) {
+  const statusStyles: Record<string, string> = {
+    replied: 'bg-status-live/20 text-status-live',
+    processing: 'bg-accent/20 text-accent',
+    failed: 'bg-status-error/20 text-status-error',
+    pending: 'bg-bg-hover text-text-secondary',
+  };
+
+  return (
+    <div className="p-4">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-semibold text-accent">@{mention.author_username}</span>
+          <p className="text-sm text-text-secondary mt-1 break-words">{mention.text}</p>
+        </div>
+        <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-md ${statusStyles[mention.status] || statusStyles.pending}`}>
+          {mention.status}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onDeploy(mention.tweet_id)}
+          className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold 
+                   bg-accent hover:bg-accent-hover text-white rounded-lg transition-colors"
+        >
+          <Play className="w-3.5 h-3.5" /> Deploy
+        </button>
+        {mention.deployment_url && (
+          <a
+            href={mention.deployment_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium 
+                     text-text-secondary bg-bg-hover border border-border rounded-lg 
+                     hover:border-accent hover:text-text-primary transition-colors"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> View
+          </a>
+        )}
+      </div>
     </div>
   );
 }
