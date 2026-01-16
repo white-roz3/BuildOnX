@@ -294,7 +294,7 @@ class AIBuilder:
     async def generate(self, prompt: str) -> dict:
         """Generate a complete project from a prompt."""
         
-        system_prompt = """You are BuildOnX, an expert developer that generates complete web apps.
+        system_prompt = """You are HeyClaude, an expert developer that generates complete web apps.
 
 Generate COMPLETE, WORKING code - no placeholders, no TODOs.
 Dark mode by default, modern design, mobile responsive.
@@ -466,7 +466,7 @@ class ProjectSaver:
             
             await session.commit()
         
-        return {"url": f"https://buildonx.app/p/{slug}"}
+        return {"url": f"https://heyclaude.xyz/p/{slug}"}
 
 
 class MentionProcessor:
@@ -481,7 +481,7 @@ class MentionProcessor:
     
     async def run(self):
         """Main polling loop."""
-        print(f"🚀 BuildOnX Mention Processor starting...")
+        print(f"🚀 HeyClaude Mention Processor starting...")
         print(f"📱 Bot: @{self.twitter.bot_username}")
         print(f"🆔 User ID: {self.twitter.bot_user_id}")
         print(f"⏱️ Poll interval: {POLL_INTERVAL}s")
@@ -564,7 +564,7 @@ class MentionProcessor:
         
         if count > 3:
             print(f"⏳ Rate limited: @{username}")
-            await self.twitter.reply(tweet_id, f"⏳ @{username} You've hit your limit! Upgrade at buildonx.app/pro 🚀")
+            await self.twitter.reply(tweet_id, f"⏳ @{username} You've hit your limit! Upgrade at heyclaude.xyz/pro 🚀")
             return
         
         # Content moderation
@@ -578,7 +578,7 @@ class MentionProcessor:
         slug = None
         try:
             slug = generate_slug(prompt)
-            build_url = f"https://buildonx.app/build/{slug}"
+            build_url = f"https://heyclaude.xyz/studio/{slug}"
             
             # INSTANTLY reply with build link
             await self.twitter.post_building(tweet_id, username, build_url)
@@ -610,8 +610,8 @@ class MentionProcessor:
             )
             
             # Post final success reply
-            project_url = f"https://buildonx.app/p/{slug}"
-            studio_url = f"https://buildonx.app/studio/{slug}"
+            project_url = f"https://heyclaude.xyz/p/{slug}"
+            studio_url = f"https://heyclaude.xyz/studio/{slug}"
             
             await self.twitter.post_complete(
                 tweet_id, username, project_url, studio_url, result.get("name", "Your App")

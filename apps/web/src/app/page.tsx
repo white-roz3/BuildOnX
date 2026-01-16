@@ -30,10 +30,23 @@ export default function HomePage() {
     setError(null);
 
     try {
+      console.log('Creating project with prompt:', submitPrompt);
       const result = await createProject(submitPrompt);
-      router.push(`/studio/${result.slug}`);
+      console.log('Project created:', result);
+      
+      // The API returns ProjectResponse which includes slug
+      // Navigate to studio where polling will handle status updates
+      if (result.slug) {
+        router.push(`/studio/${result.slug}`);
+      } else {
+        throw new Error('Project created but no slug returned');
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create project');
+      console.error('Error creating project:', err);
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : 'Failed to create project. The API may be taking longer than expected.';
+      setError(errorMessage);
       setIsLoading(false);
     }
   };
@@ -212,7 +225,7 @@ export default function HomePage() {
           <div className="flex items-center gap-2 text-text-muted">
             <span>Built with</span>
             <span className="text-accent">✳</span>
-            <span className="text-text-secondary">HeyClaude</span>
+            <span className="text-text-secondary">Claude</span>
           </div>
           <div className="font-mono text-xs text-text-muted">
             CA: FeuQgovgEifmohmohDj2PdMV4NLAhqzdCytubsys3vVpump

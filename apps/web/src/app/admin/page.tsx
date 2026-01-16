@@ -192,7 +192,7 @@ export default function AdminPage() {
           <div className="flex items-center gap-2 text-text-muted">
             <span>Built with</span>
             <span className="text-accent">✳</span>
-            <span className="text-text-secondary">HeyClaude</span>
+            <span className="text-text-secondary">Claude</span>
           </div>
           <div className="font-mono text-xs text-text-muted">
             CA: FeuQgovgEifmohmohDj2PdMV4NLAhqzdCytubsys3vVpump

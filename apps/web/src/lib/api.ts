@@ -1,6 +1,7 @@
-const API_URL = typeof window !== "undefined" && window.location.hostname !== "localhost"
-  ? "https://heyclaude-api-production.up.railway.app"
-  : (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000");
+// Always use production API - Railway handles the deployment
+const API_URL = typeof window !== "undefined" 
+  ? (process.env.NEXT_PUBLIC_API_URL || "https://heyclaude-api-production.up.railway.app")
+  : "https://heyclaude-api-production.up.railway.app";
 
 export interface Project {
   id: number;
@@ -19,10 +20,13 @@ export interface Project {
 }
 
 export interface CreateProjectResponse {
+  id: string;
   slug: string;
   name: string;
   status: string;
-  message: string;
+  deployment_status?: string;
+  deployment_url?: string;
+  message?: string;
 }
 
 export interface RefineResponse {
@@ -31,16 +35,46 @@ export interface RefineResponse {
 }
 
 export async function createProject(prompt: string): Promise<CreateProjectResponse> {
-  const res = await fetch(`${API_URL}/api/projects`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
-  });
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ detail: "Failed to create project" }));
-    throw new Error(error.detail || "Failed to create project");
+  const url = `${API_URL}/api/projects`;
+  console.log('Creating project:', url, { prompt });
+  
+  // Create an AbortController for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+  
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt }),
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ 
+        detail: `HTTP ${res.status}: ${res.statusText}` 
+      }));
+      throw new Error(error.detail || error.message || `Failed to create project (${res.status})`);
+    }
+    
+    const data = await res.json();
+    console.log('Project created:', data);
+    return data;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Request timeout - The build is taking longer than expected. Please check the studio page for status.');
+    }
+    
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(`Cannot connect to API at ${API_URL}. Please check if the API service is running.`);
+    }
+    
+    throw error;
   }
-  return res.json();
 }
 
 export async function fetchProject(slug: string): Promise<Project> {
