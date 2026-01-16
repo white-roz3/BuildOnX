@@ -419,7 +419,16 @@ async def refine_project(
                 max_tokens=4000,
                 system="""You refine web apps. Output ONLY valid JSON:
 {"name": "App Name", "files": {"index.html": "<full html content>"}}
-Keep dark theme. Include ALL original content plus the requested change.""",
+
+MAINTAIN NEOBRUTALIST DESIGN:
+- Thick black borders (3px solid #000)
+- Offset box shadows (4px 4px 0 #000)
+- Bold typography (Space Grotesk or similar)
+- High contrast, flat colors, NO gradients
+- Sharp corners or chunky rounded (12-16px)
+- Keep the raw, intentional aesthetic
+
+Include ALL original content plus the requested change.""",
                 messages=[{"role": "user", "content": f"Current files:\n{files_context}\n\nMake this change: {instruction}"}]
             )
             
