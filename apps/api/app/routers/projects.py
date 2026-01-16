@@ -134,6 +134,48 @@ async def get_project(
     return ProjectResponse.model_validate(project)
 
 
+from fastapi.responses import HTMLResponse
+
+@router.get("/{slug}/preview", response_class=HTMLResponse)
+async def get_project_preview(
+    slug: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Serve project HTML directly for iframe preview."""
+    result = await db.execute(
+        select(Project).where(Project.slug == slug)
+    )
+    project = result.scalar_one_or_none()
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Get the entry point file (usually index.html)
+    files = project.files or {}
+    entry_point = project.entry_point or "index.html"
+    
+    html_content = files.get(entry_point, "")
+    
+    if not html_content:
+        # Fallback: try to find any HTML file
+        for filename, content in files.items():
+            if filename.endswith('.html'):
+                html_content = content
+                break
+    
+    if not html_content:
+        return HTMLResponse(
+            content="<html><body><h1>No preview available</h1><p>This project has no HTML content.</p></body></html>",
+            status_code=200
+        )
+    
+    # Increment view count
+    project.views += 1
+    await db.commit()
+    
+    return HTMLResponse(content=html_content, status_code=200)
+
+
 @router.post("", response_model=ProjectResponse)
 async def create_project(
     data: ProjectCreate,
