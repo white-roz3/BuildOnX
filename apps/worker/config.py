@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     twitter_access_token: str = ""
     twitter_access_secret: str = ""
     twitter_bot_user_id: str = ""
-    twitter_bot_username: str = "BuildAppsOnX"
+    twitter_bot_username: str = "buildheyclaude"
     
     # Anthropic
     anthropic_api_key: str = ""
@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     fly_org: str = ""
     
     # Base domain
-    base_domain: str = "BuildOnX.app"
+    base_domain: str = "heyclaude.xyz"
 
 
 settings = Settings()

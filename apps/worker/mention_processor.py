@@ -636,9 +636,30 @@ class MentionProcessor:
 
 
 async def main():
+    print("=" * 60)
+    print("🚀 HeyClaude Worker Starting...")
+    print("=" * 60)
+    
+    # Check required env vars
+    if not settings.twitter_bot_user_id:
+        print("❌ TWITTER_BOT_USER_ID not set!")
+    if not settings.twitter_bearer_token:
+        print("❌ TWITTER_BEARER_TOKEN not set!")
+    if not settings.anthropic_api_key:
+        print("❌ ANTHROPIC_API_KEY not set!")
+    if not settings.redis_url:
+        print("❌ REDIS_URL not set!")
+    
+    print(f"📱 Bot username: @{settings.twitter_bot_username}")
+    print(f"🆔 Bot user ID: {settings.twitter_bot_user_id[:10] if settings.twitter_bot_user_id else 'NOT SET'}...")
+    print(f"🔑 API key: {settings.anthropic_api_key[:20] if settings.anthropic_api_key else 'NOT SET'}...")
+    print(f"🗄️ Redis: {settings.redis_url[:30] if settings.redis_url else 'NOT SET'}...")
+    print("=" * 60)
+    
     processor = MentionProcessor()
     await processor.run()
 
 
 if __name__ == "__main__":
+    print("Worker entry point reached")
     asyncio.run(main())
