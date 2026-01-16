@@ -1,7 +1,5 @@
-// Always use production API - Railway handles the deployment
-const API_URL = typeof window !== "undefined" 
-  ? (process.env.NEXT_PUBLIC_API_URL || "https://heyclaude-api-production.up.railway.app")
-  : "https://heyclaude-api-production.up.railway.app";
+// Production API URL - hardcoded for reliability
+const API_URL = "https://heyclaude-api-production.up.railway.app";
 
 export interface Project {
   id: number;
