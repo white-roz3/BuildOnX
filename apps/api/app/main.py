@@ -61,12 +61,7 @@ app.add_middleware(RateLimitMiddleware)
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://heyclaude.xyz",
-        "https://www.heyclaude.xyz",
-        "https://heyclaude-web-production.up.railway.app",
-    ],
+    allow_origins=["*"],  # Allow all origins for now
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
