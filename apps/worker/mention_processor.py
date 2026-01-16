@@ -223,7 +223,8 @@ class Bot:
                 
                 # Reply with studio link
                 studio_url = f"https://heyclaude.xyz/studio/{slug}"
-                await self.twitter.reply(tweet_id, f"@{username} {studio_url}")
+                reply_msg = f"Hey @{username}! 👋 Your app is now being built and will be available at {studio_url}"
+                await self.twitter.reply(tweet_id, reply_msg)
                 
                 print(f"✅ Done: {studio_url}")
                 
