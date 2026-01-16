@@ -33,11 +33,11 @@ const config: Config = {
           DEFAULT: '#44403c',   // stone-700 - visible
           subtle: '#292524',    // stone-800 - subtle
         },
-        // Status
+        // Status (simplified)
         status: {
-          live: '#22c55e',      // green-500
-          warning: '#ea580c',   // orange-600
-          error: '#ef4444',     // red-500
+          running: '#22c55e',   // green-500 - for completed/live
+          pending: '#fb923c',   // orange-400 - for building/pending
+          error: '#ef4444',     // red-500 - for failed
         },
       },
       fontFamily: {

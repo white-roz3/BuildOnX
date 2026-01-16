@@ -2,18 +2,25 @@
 const API_URL = "https://heyclaude-api-production.up.railway.app";
 
 export interface Project {
-  id: number;
+  id: string;
   slug: string;
   name: string;
-  prompt: string;
-  status: string;
-  html_content?: string;
-  css_content?: string;
-  js_content?: string;
+  description?: string;
+  prompt: string;              // Frontend alias for original_prompt
+  original_prompt?: string;    // API field name
+  status: string;              // Frontend alias for deployment_status  
+  deployment_status?: string;  // API field name
+  files?: Record<string, string>;
+  entry_point?: string;
+  html_content?: string;       // Extracted from files
+  css_content?: string;        // Extracted from files
+  js_content?: string;         // Extracted from files
   deployment_url?: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
   view_count?: number;
+  views?: number;              // API field name
+  is_public?: boolean;
   twitter_author?: string;
 }
 
@@ -75,12 +82,29 @@ export async function createProject(prompt: string): Promise<CreateProjectRespon
   }
 }
 
+// Transform API response to frontend format
+function transformProject(data: any): Project {
+  const files = data.files || {};
+  return {
+    ...data,
+    // Map API field names to frontend aliases
+    prompt: data.original_prompt || data.prompt || '',
+    status: data.deployment_status || data.status || 'pending',
+    view_count: data.views ?? data.view_count ?? 0,
+    // Extract files for backwards compatibility
+    html_content: files['index.html'] || data.html_content,
+    css_content: files['style.css'] || data.css_content,
+    js_content: files['script.js'] || data.js_content,
+  };
+}
+
 export async function fetchProject(slug: string): Promise<Project> {
   const res = await fetch(`${API_URL}/api/projects/${slug}`);
   if (!res.ok) {
     throw new Error("Project not found");
   }
-  return res.json();
+  const data = await res.json();
+  return transformProject(data);
 }
 
 export async function fetchProjects(): Promise<Project[]> {
@@ -88,7 +112,10 @@ export async function fetchProjects(): Promise<Project[]> {
   if (!res.ok) {
     throw new Error("Failed to fetch projects");
   }
-  return res.json();
+  const data = await res.json();
+  // API returns { items: [...], total, page, per_page }
+  const items = Array.isArray(data) ? data : (data.items || []);
+  return items.map(transformProject);
 }
 
 export async function refineProject(slug: string, instruction: string): Promise<RefineResponse> {
@@ -113,13 +140,17 @@ export async function pollProjectStatus(
 ): Promise<Project> {
   let attempts = 0;
   
+  // Status values that indicate completion
+  const completedStatuses = ['completed', 'live', 'deployed'];
+  const errorStatuses = ['error', 'failed'];
+  
   return new Promise((resolve, reject) => {
     const poll = async () => {
       try {
         const project = await fetchProject(slug);
         onUpdate(project);
         
-        if (project.status === 'completed' || project.status === 'error') {
+        if (completedStatuses.includes(project.status) || errorStatuses.includes(project.status)) {
           resolve(project);
           return;
         }

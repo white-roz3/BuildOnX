@@ -52,7 +52,7 @@ export default function StudioPage() {
           status: 'complete',
         });
 
-        if (data.status === 'pending' || data.status === 'processing') {
+        if (data.status === 'pending' || data.status === 'processing' || data.status === 'building') {
           setIsBuilding(true);
           addBuildStep({
             type: 'task',
@@ -64,7 +64,7 @@ export default function StudioPage() {
             if (cancelled) return;
             setProject(updated);
 
-            if (updated.status === 'completed') {
+            if (updated.status === 'completed' || updated.status === 'live' || updated.status === 'deployed') {
               setIsBuilding(false);
               updateLastBuildStep('complete', 3);
               addBuildStep({
@@ -72,7 +72,7 @@ export default function StudioPage() {
                 content: 'Build complete! Your app is live.',
                 status: 'complete',
               });
-            } else if (updated.status === 'error') {
+            } else if (updated.status === 'error' || updated.status === 'failed') {
               setIsBuilding(false);
               updateLastBuildStep('error');
               addBuildStep({
@@ -87,7 +87,7 @@ export default function StudioPage() {
               setError(err.message);
             }
           });
-        } else if (data.status === 'completed') {
+        } else if (data.status === 'completed' || data.status === 'live' || data.status === 'deployed') {
           addBuildStep({
             type: 'task',
             content: 'Generated application files',
@@ -153,7 +153,7 @@ export default function StudioPage() {
       await pollProjectStatus(slug, (updated) => {
         setProject(updated);
 
-        if (updated.status === 'completed') {
+        if (updated.status === 'completed' || updated.status === 'live' || updated.status === 'deployed') {
           setIsBuilding(false);
           setIsRefining(false);
           updateLastBuildStep('complete', 2);
@@ -163,7 +163,7 @@ export default function StudioPage() {
             status: 'complete',
           });
           setIframeKey(k => k + 1);
-        } else if (updated.status === 'error') {
+        } else if (updated.status === 'error' || updated.status === 'failed') {
           setIsBuilding(false);
           setIsRefining(false);
           updateLastBuildStep('error');

@@ -139,14 +139,16 @@ export default function ProjectPage() {
               {new Date(project.created_at).toLocaleDateString()}
             </span>
             <span className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs font-semibold rounded-md ${
-              project.status === 'completed' 
-                ? 'bg-status-live/20 text-status-live' 
+              project.status === 'live' || project.status === 'completed' || project.status === 'deployed'
+                ? 'bg-status-running/20 text-status-running' 
                 : 'bg-accent/20 text-accent'
             }`}>
               <span className={`w-1.5 h-1.5 rounded-full ${
-                project.status === 'completed' ? 'bg-status-live' : 'bg-accent animate-pulse'
+                project.status === 'live' || project.status === 'completed' || project.status === 'deployed' 
+                  ? 'bg-status-running' 
+                  : 'bg-accent animate-pulse'
               }`} />
-              {project.status === 'completed' ? 'Live' : project.status}
+              {project.status === 'live' || project.status === 'completed' || project.status === 'deployed' ? 'Live' : project.status}
             </span>
           </div>
         </div>
