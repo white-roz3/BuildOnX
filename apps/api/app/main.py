@@ -26,6 +26,14 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
     print("🚀 Starting HeyClaude API...")
+    
+    # Check API key
+    api_key = settings.anthropic_api_key
+    if api_key and api_key.strip():
+        print(f"✅ Anthropic API key configured ({len(api_key)} chars)")
+    else:
+        print("❌ WARNING: ANTHROPIC_API_KEY is not configured!")
+    
     try:
         await init_db()
         print("✅ Database initialized")

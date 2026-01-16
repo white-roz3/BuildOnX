@@ -21,7 +21,10 @@ class BuilderService:
     """
     
     def __init__(self):
-        self.client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+        api_key = settings.anthropic_api_key
+        if not api_key or not api_key.strip():
+            raise ValueError("ANTHROPIC_API_KEY is not configured")
+        self.client = AsyncAnthropic(api_key=api_key.strip())
         self.model = "claude-sonnet-4-20250514"  # Fast for most builds
         self.model_complex = "claude-opus-4-20250514"  # For complex projects
     
