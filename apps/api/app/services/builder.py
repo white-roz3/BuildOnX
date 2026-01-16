@@ -4,6 +4,7 @@ Takes natural language prompts and generates complete, deployable projects.
 """
 
 import json
+import os
 import re
 from typing import Optional
 
@@ -21,10 +22,13 @@ class BuilderService:
     """
     
     def __init__(self):
-        api_key = settings.anthropic_api_key
+        # Read API key directly from environment as a fallback
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "") or settings.anthropic_api_key
         if not api_key or not api_key.strip():
             raise ValueError("ANTHROPIC_API_KEY is not configured")
-        self.client = AsyncAnthropic(api_key=api_key.strip())
+        api_key = api_key.strip()
+        print(f"[BuilderService] Using API key: {api_key[:20]}... ({len(api_key)} chars)")
+        self.client = AsyncAnthropic(api_key=api_key)
         self.model = "claude-sonnet-4-20250514"  # Fast for most builds
         self.model_complex = "claude-opus-4-20250514"  # For complex projects
     

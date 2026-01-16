@@ -3,11 +3,18 @@ AI utilities for prompt enhancement and analysis.
 """
 
 import json
+import os
 from typing import Optional
 
 from anthropic import AsyncAnthropic
 
 from app.config import settings
+
+
+def get_api_key() -> str:
+    """Get API key from environment or settings."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "") or settings.anthropic_api_key
+    return api_key.strip() if api_key else ""
 
 
 class PromptEnhancer:
@@ -16,7 +23,10 @@ class PromptEnhancer:
     """
     
     def __init__(self):
-        self.client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+        api_key = get_api_key()
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY is not configured")
+        self.client = AsyncAnthropic(api_key=api_key)
     
     async def enhance(self, short_prompt: str) -> dict:
         """
