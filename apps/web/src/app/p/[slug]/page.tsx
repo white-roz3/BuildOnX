@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { fetchProject, Project, API_URL } from '@/lib/api';
@@ -8,12 +9,9 @@ import {
   ExternalLink, Edit3, Twitter, Eye, Calendar, Code, Share2
 } from 'lucide-react';
 
-interface PageProps {
-  params: Promise<{ slug: string }>;
-}
-
-export default function ProjectPage({ params }: PageProps) {
-  const { slug } = use(params);
+export default function ProjectPage() {
+  const params = useParams();
+  const slug = params.slug as string;
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +19,8 @@ export default function ProjectPage({ params }: PageProps) {
   const [activeTab, setActiveTab] = useState<'html' | 'css' | 'js'>('html');
 
   useEffect(() => {
+    if (!slug) return;
+    
     const loadProject = async () => {
       try {
         const data = await fetchProject(slug);

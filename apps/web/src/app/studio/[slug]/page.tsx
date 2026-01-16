@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, use } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { fetchProject, refineProject, pollProjectStatus, Project, API_URL } from '@/lib/api';
@@ -8,10 +9,6 @@ import {
   ExternalLink, Share2, ChevronRight, RefreshCw, Maximize2,
   ImageIcon, MoreHorizontal, Check, Loader2, FileCode, Copy, Twitter
 } from 'lucide-react';
-
-interface PageProps {
-  params: Promise<{ slug: string }>;
-}
 
 interface BuildStep {
   id: string;
@@ -21,8 +18,9 @@ interface BuildStep {
   toolsUsed?: number;
 }
 
-export default function StudioPage({ params }: PageProps) {
-  const { slug } = use(params);
+export default function StudioPage() {
+  const params = useParams();
+  const slug = params.slug as string;
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefining, setIsRefining] = useState(false);
@@ -36,6 +34,8 @@ export default function StudioPage({ params }: PageProps) {
   const files = project ? getProjectFiles(project) : [];
 
   useEffect(() => {
+    if (!slug) return;
+    
     let cancelled = false;
 
     const loadProject = async () => {
