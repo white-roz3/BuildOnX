@@ -22,12 +22,13 @@ class BuilderService:
     """
     
     def __init__(self):
-        # Read API key directly from environment as a fallback
-        api_key = os.environ.get("ANTHROPIC_API_KEY", "") or settings.anthropic_api_key
-        if not api_key or not api_key.strip():
-            raise ValueError("ANTHROPIC_API_KEY is not configured")
-        api_key = api_key.strip()
-        print(f"[BuilderService] Using API key: {api_key[:20]}... ({len(api_key)} chars)")
+        # Let the SDK pick up ANTHROPIC_API_KEY from environment automatically
+        # The SDK will read os.environ["ANTHROPIC_API_KEY"] if api_key is not provided
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
+        print(f"[BuilderService] API key found: {api_key[:20]}... ({len(api_key)} chars)")
+        # Pass the key directly to ensure it's used
         self.client = AsyncAnthropic(api_key=api_key)
         self.model = "claude-sonnet-4-20250514"  # Fast for most builds
         self.model_complex = "claude-opus-4-20250514"  # For complex projects
