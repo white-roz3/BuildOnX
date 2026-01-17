@@ -194,13 +194,62 @@ class Bot:
             self.last_id = mention["id"]
             await self.redis.set("heyclaude:last_id", self.last_id)
     
+    def is_build_request(self, text: str) -> bool:
+        """Check if the tweet is a legitimate build request, not just a reply."""
+        text_lower = text.lower().strip()
+        
+        # Too short to be a real prompt
+        if len(text_lower) < 10:
+            return False
+        
+        # Skip if it's just conversational/not a build request
+        skip_phrases = [
+            "thanks", "thank you", "thx", "cool", "nice", "awesome", "great",
+            "lol", "lmao", "haha", "wow", "ok", "okay", "yes", "no", "yep", "nope",
+            "what", "why", "how", "when", "where", "who",
+            "hello", "hi", "hey", "sup", "yo",
+            "follow", "dm", "message", "reply",
+            "love it", "love this", "looks good", "looks great",
+            "doesn't work", "not working", "broken", "fix",
+            "?",  # Just a question mark
+        ]
+        
+        for phrase in skip_phrases:
+            if text_lower == phrase or text_lower.startswith(phrase + " ") and len(text_lower) < 30:
+                return False
+        
+        # Look for build-related keywords (positive signal)
+        build_keywords = [
+            "build", "create", "make", "generate", "app", "website", "site",
+            "page", "dashboard", "tool", "calculator", "tracker", "game",
+            "portfolio", "landing", "form", "list", "timer", "counter",
+            "converter", "generator", "manager", "viewer", "editor"
+        ]
+        
+        has_build_keyword = any(kw in text_lower for kw in build_keywords)
+        
+        # If it has a build keyword, it's likely a request
+        if has_build_keyword:
+            return True
+        
+        # If it's longer than 20 chars and doesn't match skip phrases, treat as prompt
+        if len(text_lower) > 20:
+            return True
+        
+        return False
+
     async def handle(self, mention: dict):
         """Handle a mention - create project and reply with studio link."""
         tweet_id = mention["id"]
         username = mention["username"]
         prompt = mention["prompt"]
         
-        print(f"📥 @{username}: {prompt[:40]}...")
+        # Filter out non-build requests
+        if not self.is_build_request(prompt):
+            print(f"SKIP @{username}: '{prompt[:40]}...' (not a build request)")
+            return
+        
+        print(f"BUILD @{username}: {prompt[:40]}...")
         
         try:
             # Call API to create project
