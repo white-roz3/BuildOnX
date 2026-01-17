@@ -221,11 +221,14 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="px-6 py-4 border-t border-border-subtle">
-        <div className="flex items-center justify-center text-sm">
+        <div className="flex flex-col items-center gap-2 text-sm">
           <div className="flex items-center gap-2 text-text-muted">
             <span>Built with</span>
             <span className="text-accent">✳</span>
             <span className="text-text-secondary">Claude</span>
+          </div>
+          <div className="text-xs text-text-muted font-mono">
+            CA: 2d5G383QyAWEMvoFx2Qy4xYznjR4D9UBCgW1jiWApump
           </div>
         </div>
       </footer>
