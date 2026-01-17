@@ -577,3 +577,25 @@ async def fork_project(
     
     return ProjectResponse.model_validate(forked)
 
+
+@router.get("/{slug}/download")
+async def download_project(
+    slug: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Download project files as JSON (can be converted to ZIP on frontend)."""
+    result = await db.execute(
+        select(Project).where(Project.slug == slug)
+    )
+    project = result.scalar_one_or_none()
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    return {
+        "slug": project.slug,
+        "name": project.name,
+        "files": project.files,
+        "entry_point": project.entry_point,
+    }
+
