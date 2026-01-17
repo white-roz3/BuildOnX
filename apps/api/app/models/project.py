@@ -15,6 +15,9 @@ from app.database import Base
 if TYPE_CHECKING:
     from app.models.user import User
     from app.models.build import Build
+    from app.models.version import ProjectVersion
+    from app.models.like import ProjectLike
+    from app.models.comment import ProjectComment
 
 
 class Project(Base):
@@ -88,6 +91,26 @@ class Project(Base):
         back_populates="project",
         cascade="all, delete-orphan",
         lazy="selectin",
+    )
+    versions: Mapped[List["ProjectVersion"]] = relationship(
+        "ProjectVersion",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="desc(ProjectVersion.version_number)",
+    )
+    likes: Mapped[List["ProjectLike"]] = relationship(
+        "ProjectLike",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    comments: Mapped[List["ProjectComment"]] = relationship(
+        "ProjectComment",
+        back_populates="project",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="desc(ProjectComment.created_at)",
     )
     
     def __repr__(self) -> str:

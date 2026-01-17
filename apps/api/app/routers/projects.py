@@ -6,14 +6,14 @@ from datetime import datetime, timedelta
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy import text
 from pydantic import BaseModel, Field
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import Project, Build, track_usage
+from app.models import Project, Build, ProjectVersion, ProjectLike, ProjectComment, track_usage
 from app.services.builder import BuilderService
 from app.services.deployer import DeployerService
 from app.services.alerts import alerts
@@ -46,6 +46,17 @@ class ProjectRefine(BaseModel):
     """Request to refine a project with AI."""
     instruction: str = Field(..., min_length=3, max_length=1000)
     current_files: Optional[dict] = None
+
+
+class ProjectLikeRequest(BaseModel):
+    """Request to like/unlike a project."""
+    liker_id: str = Field(..., min_length=1)
+
+
+class ProjectCommentRequest(BaseModel):
+    """Request to add a comment."""
+    author: str = Field(default="Anonymous", max_length=256)
+    content: str = Field(..., min_length=1, max_length=5000)
 
 
 class ProjectResponse(BaseModel):
@@ -458,6 +469,33 @@ Include ALL original content plus the requested change.""",
                 ai_result = {"files": current_files, "name": "Updated Project"}
             
             async with async_session() as db2:
+                # Get current project to save version
+                proj_result = await db2.execute(
+                    sql_text("SELECT id, files FROM projects WHERE slug = :slug"),
+                    {"slug": project_slug}
+                )
+                proj_row = proj_result.fetchone()
+                
+                if proj_row:
+                    # Create version before updating
+                    max_version_result = await db2.execute(
+                        sql_text("SELECT COALESCE(MAX(version_number), 0) FROM project_versions WHERE project_id = :project_id"),
+                        {"project_id": str(proj_row[0])}
+                    )
+                    max_version = max_version_result.scalar() or 0
+                    
+                    await db2.execute(
+                        sql_text("""INSERT INTO project_versions 
+                            (id, project_id, version_number, files, change_description, created_at)
+                            VALUES (gen_random_uuid(), :project_id, :version_number, :files, :description, NOW())"""),
+                        {
+                            "project_id": str(proj_row[0]),
+                            "version_number": max_version + 1,
+                            "files": json.dumps(proj_row[1]),
+                            "description": instruction[:200],
+                        }
+                    )
+                
                 await db2.execute(
                     sql_text("""UPDATE projects SET 
                         files = :files, name = :name, 
@@ -622,5 +660,218 @@ async def get_embed_code(
         "embed_url": embed_url,
         "preview_url": preview_url,
         "iframe_code": f'<iframe src="{preview_url}" width="100%" height="500" frameborder="0"></iframe>',
+    }
+
+
+@router.get("/{slug}/versions")
+async def get_project_versions(
+    slug: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get all versions of a project."""
+    result = await db.execute(
+        select(Project).where(Project.slug == slug)
+    )
+    project = result.scalar_one_or_none()
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    versions = await db.execute(
+        select(ProjectVersion)
+        .where(ProjectVersion.project_id == project.id)
+        .order_by(desc(ProjectVersion.version_number))
+    )
+    
+    return {
+        "versions": [
+            {
+                "id": str(v.id),
+                "version_number": v.version_number,
+                "change_description": v.change_description,
+                "created_at": v.created_at.isoformat(),
+            }
+            for v in versions.scalars().all()
+        ]
+    }
+
+
+@router.post("/{slug}/versions/{version_id}/restore")
+async def restore_version(
+    slug: str,
+    version_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Restore a project to a specific version."""
+    result = await db.execute(
+        select(Project).where(Project.slug == slug)
+    )
+    project = result.scalar_one_or_none()
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    version_result = await db.execute(
+        select(ProjectVersion).where(
+            ProjectVersion.id == version_id,
+            ProjectVersion.project_id == project.id
+        )
+    )
+    version = version_result.scalar_one_or_none()
+    
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+    
+    # Create a new version before restoring
+    max_version = await db.execute(
+        select(func.max(ProjectVersion.version_number))
+        .where(ProjectVersion.project_id == project.id)
+    )
+    new_version_num = (max_version.scalar() or 0) + 1
+    
+    backup_version = ProjectVersion(
+        project_id=project.id,
+        version_number=new_version_num,
+        files=project.files.copy(),
+        change_description="Auto-save before restore",
+    )
+    db.add(backup_version)
+    
+    # Restore files
+    project.files = version.files.copy()
+    await db.commit()
+    
+    return {"status": "restored", "version_number": version.version_number}
+
+
+@router.post("/{slug}/like")
+async def like_project(
+    slug: str,
+    data: ProjectLikeRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Like or unlike a project."""
+    result = await db.execute(
+        select(Project).where(Project.slug == slug)
+    )
+    project = result.scalar_one_or_none()
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Check if already liked
+    existing = await db.execute(
+        select(ProjectLike).where(
+            ProjectLike.project_id == project.id,
+            ProjectLike.liker_id == data.liker_id
+        )
+    )
+    existing_like = existing.scalar_one_or_none()
+    
+    if existing_like:
+        # Unlike
+        await db.delete(existing_like)
+        liked = False
+    else:
+        # Like
+        like = ProjectLike(project_id=project.id, liker_id=data.liker_id)
+        db.add(like)
+        liked = True
+    
+    await db.commit()
+    
+    # Get updated count
+    count_result = await db.execute(
+        select(func.count(ProjectLike.id)).where(ProjectLike.project_id == project.id)
+    )
+    count = count_result.scalar() or 0
+    
+    return {"liked": liked, "likes_count": count}
+
+
+@router.get("/{slug}/likes")
+async def get_project_likes(
+    slug: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get like count for a project."""
+    result = await db.execute(
+        select(Project).where(Project.slug == slug)
+    )
+    project = result.scalar_one_or_none()
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    count_result = await db.execute(
+        select(func.count(ProjectLike.id)).where(ProjectLike.project_id == project.id)
+    )
+    count = count_result.scalar() or 0
+    
+    return {"likes_count": count}
+
+
+@router.post("/{slug}/comments")
+async def add_comment(
+    slug: str,
+    data: ProjectCommentRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a comment to a project."""
+    result = await db.execute(
+        select(Project).where(Project.slug == slug)
+    )
+    project = result.scalar_one_or_none()
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    comment = ProjectComment(
+        project_id=project.id,
+        author=data.author,
+        content=data.content,
+    )
+    db.add(comment)
+    await db.commit()
+    await db.refresh(comment)
+    
+    return {
+        "id": str(comment.id),
+        "author": comment.author,
+        "content": comment.content,
+        "created_at": comment.created_at.isoformat(),
+    }
+
+
+@router.get("/{slug}/comments")
+async def get_project_comments(
+    slug: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get all comments for a project."""
+    result = await db.execute(
+        select(Project).where(Project.slug == slug)
+    )
+    project = result.scalar_one_or_none()
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    comments_result = await db.execute(
+        select(ProjectComment)
+        .where(ProjectComment.project_id == project.id)
+        .order_by(desc(ProjectComment.created_at))
+    )
+    
+    return {
+        "comments": [
+            {
+                "id": str(c.id),
+                "author": c.author,
+                "content": c.content,
+                "created_at": c.created_at.isoformat(),
+            }
+            for c in comments_result.scalars().all()
+        ]
     }
 
