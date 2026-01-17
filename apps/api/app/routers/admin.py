@@ -619,7 +619,7 @@ Respond with ONLY a JSON object:
 }"""
             
             response = await client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-3-5-sonnet-20241022",
                 max_tokens=8000,
                 system=system_prompt,
                 messages=[{"role": "user", "content": f"Build this app: {prompt}"}],
@@ -860,7 +860,7 @@ Respond with ONLY valid JSON (no markdown): {"name": "...", "description": "..."
         
         print(f"   Calling Claude API...")
         response = await client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-3-5-sonnet-20241022",
             max_tokens=8000,
             system=system_prompt,
             messages=[{"role": "user", "content": f"Build: {prompt}"}],
@@ -1010,7 +1010,7 @@ Dark mode, modern design. Respond with ONLY valid JSON (no markdown):
 {"name": "App Name", "description": "...", "entry_point": "index.html", "files": {"index.html": "<!DOCTYPE html>..."}}"""
         
         response = await client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-3-5-sonnet-20241022",
             max_tokens=8000,
             system=system_prompt,
             messages=[{"role": "user", "content": f"Build: {prompt}"}],
@@ -1246,7 +1246,7 @@ async def test_claude_api():
         client = AsyncAnthropic(api_key=settings.anthropic_api_key)
         
         response = await client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-3-5-sonnet-20241022",
             max_tokens=4000,
             system="You are a web developer. Respond with ONLY valid JSON, no markdown.",
             messages=[{"role": "user", "content": "Create a simple hello world page. Return JSON: {\"name\": \"...\", \"files\": {\"index.html\": \"...\"}}"}]
@@ -1260,7 +1260,7 @@ async def test_claude_api():
             return {
                 "status": "success",
                 "api_key_set": True,
-                "model": "claude-sonnet-4-20250514",
+                "model": "claude-3-5-sonnet-20241022",
                 "response_length": len(text_response),
                 "parsed": True,
                 "name": result.get("name"),
@@ -1340,7 +1340,7 @@ Respond with ONLY a JSON object (no markdown, no code blocks):
 }"""
     
     response = await client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-3-5-sonnet-20241022",
         max_tokens=8000,
         system=system_prompt,
         messages=[{"role": "user", "content": f"Build this app: {prompt}"}]
@@ -1414,7 +1414,7 @@ async def quick_build(slug: str):
     client = AsyncAnthropic(api_key=settings.anthropic_api_key)
     
     response = await client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-3-5-sonnet-20241022",
         max_tokens=8000,
         system="""You are HeyClaude. Generate a complete web app with dark mode, modern design, and real content.
 Return ONLY valid JSON (no markdown): {"name": "...", "description": "...", "entry_point": "index.html", "files": {"index.html": "<!DOCTYPE html>..."}}""",
