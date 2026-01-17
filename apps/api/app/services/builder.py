@@ -30,8 +30,8 @@ class BuilderService:
         print(f"[BuilderService] API key found: {api_key[:20]}... ({len(api_key)} chars)")
         # Pass the key directly to ensure it's used
         self.client = AsyncAnthropic(api_key=api_key)
-        self.model = "claude-sonnet-4-20250514"  # Current working model
-        self.model_complex = "claude-sonnet-4-20250514"  # Same model for consistency
+        self.model = "claude-opus-4-20250514"  # Opus 4 for best quality
+        self.model_complex = "claude-opus-4-20250514"  # Same model
     
     async def generate_project(
         self,

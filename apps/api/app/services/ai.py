@@ -42,7 +42,7 @@ class PromptEnhancer:
             }
         """
         response = await self.client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-opus-4-20250514",
             max_tokens=1000,
             messages=[
                 {
@@ -96,7 +96,7 @@ Respond with ONLY a JSON object (no markdown):
         files_summary = ", ".join(current_files.keys())
         
         response = await self.client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-opus-4-20250514",
             max_tokens=500,
             messages=[
                 {
@@ -156,7 +156,7 @@ class ContentModerator:
             }
         """
         response = await self.client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-opus-4-20250514",
             max_tokens=200,
             messages=[
                 {
