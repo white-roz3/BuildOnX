@@ -82,10 +82,22 @@ export default function HomePage() {
         
         <div className="flex items-center gap-4">
           <Link 
+            href="/templates" 
+            className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+          >
+            Templates
+          </Link>
+          <Link 
             href="/explore" 
             className="text-sm text-text-secondary hover:text-text-primary transition-colors"
           >
             Explore
+          </Link>
+          <Link 
+            href="/leaderboard" 
+            className="text-sm text-text-secondary hover:text-text-primary transition-colors"
+          >
+            Leaderboard
           </Link>
           <a
             href="https://twitter.com/buildheyclaude"

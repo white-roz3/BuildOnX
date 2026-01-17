@@ -599,3 +599,28 @@ async def download_project(
         "entry_point": project.entry_point,
     }
 
+
+@router.get("/{slug}/embed")
+async def get_embed_code(
+    slug: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get embed code for a project."""
+    result = await db.execute(
+        select(Project).where(Project.slug == slug)
+    )
+    project = result.scalar_one_or_none()
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    embed_url = f"https://heyclaude.xyz/embed/{slug}"
+    preview_url = f"https://heyclaude-api-production.up.railway.app/api/projects/{slug}/preview"
+    
+    return {
+        "slug": slug,
+        "embed_url": embed_url,
+        "preview_url": preview_url,
+        "iframe_code": f'<iframe src="{preview_url}" width="100%" height="500" frameborder="0"></iframe>',
+    }
+
