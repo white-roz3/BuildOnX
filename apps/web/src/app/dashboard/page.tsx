@@ -63,10 +63,10 @@ export default function DashboardPage() {
   };
 
   const getStatus = (s: string) => {
-    if (['live', 'completed', 'deployed'].includes(s)) return { label: 'Live', color: 'text-green-400' };
-    if (['building', 'pending', 'processing'].includes(s)) return { label: 'Building', color: 'text-yellow-400' };
-    if (['failed', 'error'].includes(s)) return { label: 'Failed', color: 'text-red-400' };
-    return { label: s, color: 'text-stone-400' };
+    if (['live', 'completed', 'deployed'].includes(s)) return 'Live';
+    if (['building', 'pending', 'processing'].includes(s)) return 'Building';
+    if (['failed', 'error'].includes(s)) return 'Failed';
+    return s;
   };
 
   const timeAgo = (date: string) => {
@@ -96,19 +96,19 @@ export default function DashboardPage() {
         {/* Stats */}
         <div className="grid grid-cols-4 gap-4 mb-8">
           <div className="bg-stone-900 border border-stone-800 rounded-lg p-4">
-            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-2xl font-bold text-stone-100">{stats.total}</div>
             <div className="text-sm text-stone-500">Total</div>
           </div>
           <div className="bg-stone-900 border border-stone-800 rounded-lg p-4">
-            <div className="text-2xl font-bold text-green-400">{stats.live}</div>
+            <div className="text-2xl font-bold text-stone-100">{stats.live}</div>
             <div className="text-sm text-stone-500">Live</div>
           </div>
           <div className="bg-stone-900 border border-stone-800 rounded-lg p-4">
-            <div className="text-2xl font-bold text-yellow-400">{stats.building}</div>
+            <div className="text-2xl font-bold text-stone-100">{stats.building}</div>
             <div className="text-sm text-stone-500">Building</div>
           </div>
           <div className="bg-stone-900 border border-stone-800 rounded-lg p-4">
-            <div className="text-2xl font-bold text-red-400">{stats.failed}</div>
+            <div className="text-2xl font-bold text-stone-100">{stats.failed}</div>
             <div className="text-sm text-stone-500">Failed</div>
           </div>
         </div>
@@ -159,11 +159,10 @@ export default function DashboardPage() {
               </thead>
               <tbody className="divide-y divide-stone-800">
                 {filtered.map((p) => {
-                  const status = getStatus(p.deployment_status);
                   return (
                     <tr key={p.id} className="hover:bg-stone-800/50">
                       <td className="px-4 py-3">
-                        <span className={`text-xs font-medium ${status.color}`}>{status.label}</span>
+                        <span className="text-xs font-medium text-stone-400">{getStatus(p.deployment_status)}</span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="font-medium">{p.name || 'Untitled'}</div>
